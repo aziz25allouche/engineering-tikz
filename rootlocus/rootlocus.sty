@@ -1,0 +1,207 @@
+%% ============================================================
+%%  rootlocus.sty  --  Lieu des racines automatique
+%%  Version : 1.0  (2026)
+%%  Moteur  : pdfLaTeX + pgfplots + shell-escape Python
+%% ============================================================
+%%
+%%  PREREQUIS :
+%%    pdflatex -shell-escape  +  Python 3 + numpy
+%%    rlocus_gen.py dans le meme dossier que le .tex
+%%
+%%  SYNTAXE :
+%%    \rootlocus[options]{numerateur}{denominateur}
+%%
+%%  Coefficients ordre decroissant, virgule :
+%%    H(s) = (s+1) / (s(s+2)(s+3))  =>  {1,1}{1,5,6,0}
+%%
+%%  OPTIONS :
+%%    width   = 7cm           largeur du graphe
+%%    height  = 6cm           hauteur du graphe
+%%    points  = 600           points de calcul par branche
+%%    label   = {}            titre (expression LaTeX)
+%%    stable  = true|false    colore la zone Re<0
+%%    grid    = true|false    affiche la grille
+%%    script  = ./rlocus_gen.py
+%%    datadir = .
+%% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{rootlocus}[2026/03/01 v1.0 Lieu des racines TikZ]
+
+\RequirePackage{tikz}
+\RequirePackage{pgfplots}
+\RequirePackage{pgffor}
+\RequirePackage{xkeyval}
+\RequirePackage{xstring}
+\RequirePackage{ifthen}
+\RequirePackage{xcolor}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{calc,arrows.meta}
+
+%% ============================================================
+%%  COULEURS  (sans @ dans le nom : survie dans axis pgfplots)
+%% ============================================================
+\definecolor{rlCi}    {RGB}{ 31,119,180}
+\definecolor{rlCii}   {RGB}{214, 39, 40}
+\definecolor{rlCiii}  {RGB}{ 44,160, 44}
+\definecolor{rlCiv}   {RGB}{148,103,189}
+\definecolor{rlCv}    {RGB}{255,127, 14}
+\definecolor{rlCvi}   {RGB}{ 23,190,207}
+\definecolor{rlStable}{RGB}{232,245,232}
+\definecolor{rlPole}  {RGB}{180, 30, 30}
+\definecolor{rlZero}  {RGB}{ 30,100,200}
+\definecolor{rlAsympt}{RGB}{160,160,160}
+
+\def\rlbcolor#1{%
+  \ifcase#1\relax
+    rlCi\or rlCi\or rlCii\or rlCiii\or rlCiv\or rlCv\or rlCvi%
+  \else rlCi\fi}
+
+%% ============================================================
+%%  OPTIONS  (xkeyval)
+%% ============================================================
+\define@key{rootlocus}{width}  {\def\rl@width{#1}}
+\define@key{rootlocus}{height} {\def\rl@height{#1}}
+\define@key{rootlocus}{points} {\def\rl@points{#1}}
+\define@key{rootlocus}{label}  {\def\rl@label{#1}}
+\define@key{rootlocus}{stable} {\def\rl@stable{#1}}
+\define@key{rootlocus}{grid}   {\def\rl@grid{#1}}
+\define@key{rootlocus}{script} {\def\rl@script{#1}}
+\define@key{rootlocus}{datadir}{\def\rl@datadir{#1}}
+
+%% Valeurs par defaut
+\def\rl@width{7cm}    \def\rl@height{6cm}
+\def\rl@points{600}   \def\rl@label{}
+\def\rl@stable{true}  \def\rl@grid{true}
+\def\rl@script{./rlocus_gen.py}
+\def\rl@datadir{.}
+
+%% ============================================================
+%%  BRANCHES  (boucle sans \numexpr, incompatible dans axis)
+%% ============================================================
+\newcounter{rlbi}
+
+\def\rldrawbranches#1#2{%
+  %% Branches 1 .. N-1
+  \setcounter{rlbi}{1}%
+  \@whilenum\therlbi<#2\relax\do{%
+    \edef\rlbc{\rlbcolor{\therlbi}}%
+    \edef\rlbf{#1_b\therlbi.dat}%
+    \addplot[color=\rlbc, line width=1.2pt, smooth, each nth point=2]
+      table[x index=0,y index=1]{\rlbf};%
+    \stepcounter{rlbi}}%
+  %% Branche N (fin de boucle inclusive)
+  \edef\rlbc{\rlbcolor{#2}}%
+  \edef\rlbf{#1_b#2.dat}%
+  \addplot[color=\rlbc, line width=1.2pt, smooth, each nth point=2]
+    table[x index=0,y index=1]{\rlbf};%
+}
+
+%% ============================================================
+%%  POLES  --  \RLpolelist = "re/im,re/im,..."
+%% ============================================================
+\def\rldrawpoles{%
+  \foreach \rlitem in \RLpolelist {%
+    \StrCut{\rlitem}{/}{\rlre}{\rlim}%
+    \edef\rlrea{\rlre}\edef\rlima{\rlim}%
+    \addplot[rlPole, mark=x, mark size=6pt, line width=2pt, only marks]
+      coordinates {(\rlrea,\rlima)};%
+  }%
+}
+
+%% ============================================================
+%%  ZEROS  --  \RLzerolist = "re/im,re/im,..."
+%% ============================================================
+\def\rldrawzeros{%
+  \ifthenelse{\equal{\RLnumzeros}{0}}{}{%
+    \foreach \rlitem in \RLzerolist {%
+      \StrCut{\rlitem}{/}{\rlre}{\rlim}%
+      \edef\rlrea{\rlre}\edef\rlima{\rlim}%
+      \addplot[rlZero, mark=o, mark size=5pt,
+               line width=1.5pt, fill=white, only marks]
+        coordinates {(\rlrea,\rlima)};%
+    }%
+  }%
+}
+
+%% ============================================================
+%%  ASYMPTOTES  --  \RLasymptlist = "sigma/angle,sigma/angle,..."
+%% ============================================================
+\def\rldrawasymptotes{%
+  \ifthenelse{\equal{\RLnumasympt}{0}}{}{%
+    \foreach \rlitem in \RLasymptlist {%
+      \StrCut{\rlitem}{/}{\rlsig}{\rlang}%
+      \edef\rlsiga{\rlsig}\edef\rlanga{\rlang}%
+      \pgfmathsetmacro{\rldx}{cos(\rlanga)*30}%
+      \pgfmathsetmacro{\rldy}{sin(\rlanga)*30}%
+      \pgfmathsetmacro{\rlex}{\rlsiga + \rldx}%
+      \addplot[rlAsympt, dashed, line width=0.7pt]
+        coordinates {(\rlsiga,0) (\rlex,\rldy)};%
+    }%
+  }%
+}
+
+%% ============================================================
+%%  COMMANDE PRINCIPALE  \rootlocus
+%% ============================================================
+\newcommand{\rootlocus}[3][]{%
+  %% Reset options
+  \def\rl@width{7cm}\def\rl@height{6cm}\def\rl@points{600}%
+  \def\rl@label{}\def\rl@stable{true}\def\rl@grid{true}%
+  \def\rl@script{./rlocus_gen.py}\def\rl@datadir{.}%
+  \setkeys{rootlocus}{#1}%
+  %% Nom de base des fichiers (virgules -> tirets)
+  \StrSubstitute{#2}{,}{-}[\rl@numf]%
+  \StrSubstitute{#3}{,}{-}[\rl@denf]%
+  \edef\rl@base{\rl@datadir/rl_\rl@numf__\rl@denf}%
+  %% Appel Python si .tex absent (premiere compilation)
+  \IfFileExists{\rl@base.tex}{}{%
+    \immediate\write18{python3 "\rl@script" "#2" "#3" "\rl@base" \rl@points}%
+  }%
+  %% Charge les macros \RLxmin \RLxmax \RLpolelist etc.
+  \IfFileExists{\rl@base.tex}{%
+    \input{\rl@base.tex}%
+  }{%
+    \PackageError{rootlocus}%
+      {Fichier \rl@base.tex introuvable}%
+      {Verifiez : pdflatex -shell-escape + Python3 + numpy + rlocus_gen.py}%
+  }%
+  %% Expansion AVANT \begin{axis} (pgfplots ne peut pas expand \rl@xxx)
+  \edef\rlXmin{\RLxmin}\edef\rlXmax{\RLxmax}%
+  \edef\rlYmin{\RLymin}\edef\rlYmax{\RLymax}%
+  \edef\rlBr{\RLbranches}%
+  \edef\rlbase{\rl@base}%          %% sans @ : survie dans axis
+  \ifthenelse{\equal{\rl@grid}{true}}%
+    {\def\rlgridval{both}}{\def\rlgridval{none}}%
+  %% Figure
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=\rl@width,
+      height=\rl@height,
+      xmin=\rlXmin, xmax=\rlXmax,
+      ymin=\rlYmin, ymax=\rlYmax,
+      xlabel={$\mathrm{Re}(s)$},
+      ylabel={$\mathrm{Im}(s)$},
+      axis lines=center,
+      axis line style={-Stealth, thick, black},
+      xtick align=outside,
+      ytick align=outside,
+      minor tick num=1,
+      grid=\rlgridval,
+      grid style={line width=0.3pt, gray!25},
+      major grid style={gray!40},
+      title={\rl@label},
+      clip=true,
+    ]
+      \ifthenelse{\equal{\rl@stable}{true}}{%
+        \fill[rlStable, opacity=0.5]
+          (\rlXmin,\rlYmin) rectangle (0,\rlYmax);%
+      }{}%
+      \rldrawasymptotes
+      \rldrawbranches{\rlbase}{\rlBr}%
+      \rldrawpoles
+      \rldrawzeros
+    \end{axis}
+  \end{tikzpicture}%
+}
+
+\endinput

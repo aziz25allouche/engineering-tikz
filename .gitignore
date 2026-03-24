@@ -1,0 +1,27 @@
+# LaTeX auxiliaires
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.blg
+*.bbl
+
+# Fichiers generes par rootlocus (cache Python)
+rl_*.dat
+rl_*.tex
+rl_*_b*.dat
+
+# PDFs de demo (regenerables)
+demo_*.pdf
+
+# Divers
+*.DS_Store
+__pycache__/
+*.pyc
+.vscode/

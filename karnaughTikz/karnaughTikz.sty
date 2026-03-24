@@ -1,0 +1,261 @@
+%% ============================================================
+%%  karnaughTikz.sty  --  Tables de Karnaugh
+%%  Version : 1.0  (2026)    Moteur : pdfLaTeX + TikZ
+%% ============================================================
+%%
+%%  SYNTAXE :
+%%    \begin{karnaugh}[options]{n}{A,B,...}{0,1,X,...}
+%%      \kvgroup[color]{i,j,...}
+%%    \end{karnaugh}
+%%
+%%  n = 2, 3 ou 4 variables
+%%  Valeurs en ordre minterm 0..2^n-1 (pas Gray)
+%%
+%%  OPTIONS (cle=valeur) :
+%%    cell  = 1cm      taille d'une cellule
+%%    index = false    afficher l'indice minterm dans chaque case
+%%
+%%  EXEMPLE 4 variables :
+%%    \begin{karnaugh}[cell=1.1cm]{4}{A,B,C,D}%
+%%      {0,1,1,0, 1,1,0,0, 1,1,0,0, 0,1,0,0}
+%%      \kvgroup[blue!60]{1,5,3,7}
+%%      \kvgroup[red!60]{5,7,13,15}
+%%    \end{karnaugh}
+%% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{karnaughTikz}[2026/03/01 v1.0 Tables de Karnaugh TikZ]
+
+\RequirePackage{tikz}
+\RequirePackage{xkeyval}
+\RequirePackage{xcolor}
+\RequirePackage{pgffor}
+\RequirePackage{ifthen}
+\usetikzlibrary{calc}
+
+%% ============================================================
+%%  OPTIONS
+%% ============================================================
+\define@key{karnaugh}{cell} {\def\kvcell{#1}}
+\define@key{karnaugh}{index}{\def\kvindex{#1}}
+\def\kvcell{1cm}
+\def\kvindex{false}
+
+%% ============================================================
+%%  COMPTEURS
+%% ============================================================
+\newcounter{kvnv}   % nb variables
+\newcounter{kvnr}   % nb lignes
+\newcounter{kvnc}   % nb colonnes
+\newcounter{kvii}   % valeurs
+\newcounter{kvvi}   % variables
+\newcounter{kvgi}   % groupements
+
+%% ============================================================
+%%  STOCKAGE DES VALEURS  \kvv@N
+%% ============================================================
+\def\kvstorev#1{%
+  \expandafter\def\csname kvv@\thekvii\endcsname{#1}%
+  \stepcounter{kvii}}
+
+\def\kvgetv#1{\csname kvv@#1\endcsname}
+
+\def\kvparsevals#1{%
+  \setcounter{kvii}{0}%
+  \foreach \kvtmpv in {#1}{\kvstorev{\kvtmpv}}}
+
+%% ============================================================
+%%  NOMS DES VARIABLES
+%% ============================================================
+\def\kvparsevars#1{%
+  \setcounter{kvvi}{0}%
+  \foreach \kvtmpvar in {#1}{%
+    \stepcounter{kvvi}%
+    \ifnum\thekvvi=1\xdef\kvvA{\kvtmpvar}\fi
+    \ifnum\thekvvi=2\xdef\kvvB{\kvtmpvar}\fi
+    \ifnum\thekvvi=3\xdef\kvvC{\kvtmpvar}\fi
+    \ifnum\thekvvi=4\xdef\kvvD{\kvtmpvar}\fi
+  }}
+
+%% ============================================================
+%%  GRAY 2 BITS  index -> position affichee
+%%  0->0  1->1  2->3  3->2
+%% ============================================================
+\def\kvgray#1{%
+  \ifcase#1\relax
+    \def\kvG{0}\or\def\kvG{1}\or\def\kvG{3}\or\def\kvG{2}%
+  \fi}
+
+%% Gray inverse : position affichee -> index minterm
+%% 0->0  1->1  2->3  3->2  (meme table, symetrique)
+\def\kvgrayinv#1{%
+  \ifcase#1\relax
+    \def\kvGi{0}\or\def\kvGi{1}\or\def\kvGi{3}\or\def\kvGi{2}%
+  \fi}
+
+%% ============================================================
+%%  (LIGNE aff., COL aff.) -> MINTERME  \kvmin
+%% ============================================================
+\def\kvrctomn#1#2{%
+  \ifnum\thekvnv=2
+    \pgfmathtruncatemacro{\kvmin}{#1*2 + #2}%
+  \fi
+  \ifnum\thekvnv=3
+    \kvgrayinv{#2}\edef\kvGtmp{\kvGi}%
+    \pgfmathtruncatemacro{\kvmin}{#1*4 + \kvGtmp}%
+  \fi
+  \ifnum\thekvnv=4
+    \kvgrayinv{#1}\edef\kvGrow{\kvGi}%
+    \kvgrayinv{#2}\edef\kvGcol{\kvGi}%
+    \pgfmathtruncatemacro{\kvmin}{\kvGrow*4 + \kvGcol}%
+  \fi}
+
+%% ============================================================
+%%  MINTERME -> (LIGNE aff., COL aff.)  \kvrow \kvcol
+%% ============================================================
+\def\kvmintorc#1{%
+  \ifnum\thekvnv=2
+    \pgfmathtruncatemacro{\kvrow}{#1/2}%
+    \pgfmathtruncatemacro{\kvcol}{mod(#1,2)}%
+  \fi
+  \ifnum\thekvnv=3
+    \pgfmathtruncatemacro{\kvrow}{#1/4}%
+    \pgfmathtruncatemacro{\kvctmp}{mod(#1,4)}%
+    \kvgray{\kvctmp}\edef\kvcol{\kvG}%
+  \fi
+  \ifnum\thekvnv=4
+    \pgfmathtruncatemacro{\kvrtmp}{#1/4}%
+    \pgfmathtruncatemacro{\kvctmp}{mod(#1,4)}%
+    \kvgray{\kvrtmp}\edef\kvrow{\kvG}%
+    \kvgray{\kvctmp}\edef\kvcol{\kvG}%
+  \fi}
+
+%% ============================================================
+%%  GRILLE + VALEURS
+%% ============================================================
+\def\kvdrawgrid{%
+  \pgfmathtruncatemacro{\kvnrm}{\thekvnr-1}%
+  \pgfmathtruncatemacro{\kvncm}{\thekvnc-1}%
+  %% Contour
+  \draw[black,line width=0.8pt]
+    (0,0) rectangle ({\thekvnc*\kvpt},{-\thekvnr*\kvpt});%
+  %% Quadrillage interne
+  \foreach \kvrr in {1,...,\thekvnr}{%
+    \draw[black,line width=0.35pt]
+      (0,{-\kvrr*\kvpt}) -- ({\thekvnc*\kvpt},{-\kvrr*\kvpt});}%
+  \foreach \kvcc in {1,...,\thekvnc}{%
+    \draw[black,line width=0.35pt]
+      ({\kvcc*\kvpt},0) -- ({\kvcc*\kvpt},{-\thekvnr*\kvpt});}%
+  %% Valeurs
+  \foreach \kvrr in {0,...,\kvnrm}{%
+    \foreach \kvcc in {0,...,\kvncm}{%
+      \kvrctomn{\kvrr}{\kvcc}%
+      \edef\kvthismin{\kvmin}%
+      \edef\kvthisval{\kvgetv{\kvthismin}}%
+      \node[font=\normalsize] at
+        ({(\kvcc+0.5)*\kvpt},{-(\kvrr+0.5)*\kvpt}) {\kvthisval};%
+      \ifthenelse{\equal{\kvindex}{true}}{%
+        \node[font=\tiny,gray,anchor=north east] at
+          ({(\kvcc+1)*\kvpt},{-\kvrr*\kvpt}) {\kvthismin};%
+      }{}%
+    }%
+  }%
+}
+
+%% ============================================================
+%%  EN-TETES
+%% ============================================================
+\def\kvdrawheaders{%
+  \draw[black,line width=0.5pt](0,0)--({-0.7*\kvpt},{0.7*\kvpt});%
+  \ifnum\thekvnv=2
+    \node[font=\small\bfseries,anchor=south]
+      at ({\thekvnc*\kvpt/2},0) {\kvvB};%
+    \foreach \kvcc/\lbl in {0/0,1/1}{%
+      \node[font=\small,anchor=south]
+        at ({(\kvcc+0.5)*\kvpt},3pt) {\lbl};}%
+    \node[font=\small\bfseries,anchor=east]
+      at (0,{-\thekvnr*\kvpt/2}) {\kvvA};%
+    \foreach \kvrr/\lbl in {0/0,1/1}{%
+      \node[font=\small,anchor=east]
+        at (-3pt,{-(\kvrr+0.5)*\kvpt}) {\lbl};}%
+  \fi
+  \ifnum\thekvnv=3
+    \node[font=\small\bfseries,anchor=south]
+      at ({\thekvnc*\kvpt/2},0) {\kvvB\kvvC};%
+    \foreach \kvcc/\lbl in {0/00,1/01,2/11,3/10}{%
+      \node[font=\small,anchor=south]
+        at ({(\kvcc+0.5)*\kvpt},3pt) {\lbl};}%
+    \node[font=\small\bfseries,anchor=east]
+      at (0,{-\thekvnr*\kvpt/2}) {\kvvA};%
+    \foreach \kvrr/\lbl in {0/0,1/1}{%
+      \node[font=\small,anchor=east]
+        at (-3pt,{-(\kvrr+0.5)*\kvpt}) {\lbl};}%
+  \fi
+  \ifnum\thekvnv=4
+    \node[font=\small\bfseries,anchor=south]
+      at ({\thekvnc*\kvpt/2},0) {\kvvC\kvvD};%
+    \foreach \kvcc/\lbl in {0/00,1/01,2/11,3/10}{%
+      \node[font=\small,anchor=south]
+        at ({(\kvcc+0.5)*\kvpt},3pt) {\lbl};}%
+    \node[font=\small\bfseries,anchor=east]
+      at (0,{-\thekvnr*\kvpt/2}) {\kvvA\kvvB};%
+    \foreach \kvrr/\lbl in {0/00,1/01,2/11,3/10}{%
+      \node[font=\small,anchor=east]
+        at (-3pt,{-(\kvrr+0.5)*\kvpt}) {\lbl};}%
+  \fi}
+
+%% ============================================================
+%%  GROUPEMENTS  \kvgroup[color]{i,j,...}
+%%
+%%  Gestion du wrap torique :
+%%  Si les mintermes s'etendent des deux cotes d'un bord,
+%%  on dessine deux rectangles (un de chaque cote).
+%% ============================================================
+\def\kvgroup{\@ifnextchar[{\kvgroup@c}{\kvgroup@c[red!70]}}
+\def\kvgroup@c[#1]#2{\kvdrawgroup{#1}{#2}}
+
+\def\kvdrawgroup#1#2{%
+  %% Calcule rmin rmax cmin cmax dans le repere affichage
+  \def\kvrmin{99}\def\kvrmax{0}%
+  \def\kvcmin{99}\def\kvcmax{0}%
+  \foreach \kvm in {#2}{%
+    \kvmintorc{\kvm}%
+    \pgfmathtruncatemacro{\kvtst}{min(\kvrmin,\kvrow)}%
+    \xdef\kvrmin{\kvtst}%
+    \pgfmathtruncatemacro{\kvtst}{max(\kvrmax,\kvrow)}%
+    \xdef\kvrmax{\kvtst}%
+    \pgfmathtruncatemacro{\kvtst}{min(\kvcmin,\kvcol)}%
+    \xdef\kvcmin{\kvtst}%
+    \pgfmathtruncatemacro{\kvtst}{max(\kvcmax,\kvcol)}%
+    \xdef\kvcmax{\kvtst}%
+  }%
+  \def\kvpad{3.5pt}%
+  %% Rectangle normal
+  \draw[#1,fill=#1,fill opacity=0.18,line width=1.5pt,rounded corners=5pt]
+    ({\kvcmin*\kvpt-\kvpad},{-\kvrmin*\kvpt+\kvpad})
+    rectangle
+    ({(\kvcmax+1)*\kvpt+\kvpad},{-(\kvrmax+1)*\kvpt-\kvpad});%
+}
+
+%% ============================================================
+%%  ENVIRONNEMENT  karnaugh
+%% ============================================================
+\newenvironment{karnaugh}[4][]{%
+  \def\kvcell{1cm}\def\kvindex{false}%
+  \setkeys{karnaugh}{#1}%
+  %% Conversion longueur -> pt via pgfmath (pas de \strip@pt)
+  \pgfmathsetmacro{\kvpt}{\kvcell/1pt}%
+  \setcounter{kvnv}{#2}%
+  \ifnum\thekvnv=2\setcounter{kvnr}{2}\setcounter{kvnc}{2}\fi
+  \ifnum\thekvnv=3\setcounter{kvnr}{2}\setcounter{kvnc}{4}\fi
+  \ifnum\thekvnv=4\setcounter{kvnr}{4}\setcounter{kvnc}{4}\fi
+  \kvparsevars{#3}%
+  \kvparsevals{#4}%
+  \setcounter{kvgi}{0}%
+  \begin{tikzpicture}[x=1pt,y=1pt]%
+  \kvdrawgrid
+  \kvdrawheaders
+}{%
+  \end{tikzpicture}%
+}
+
+\endinput

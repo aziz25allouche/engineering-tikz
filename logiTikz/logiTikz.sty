@@ -1,0 +1,356 @@
+%% ============================================================
+%%  logiTikz.sty  ---  Logigrammes booleens
+%%  Version : 0.3  (2026)    Moteur : pdfLaTeX + TikZ/PGF
+%% ============================================================
+%%
+%%  SYNTAXE :
+%%    \begin{logigramme}[style=american|european, unit=<dim>]{<sortie>}
+%%      \INPUT{nom}
+%%      \GATE{id}{type}{entree1}{entree2}
+%%      \UGATE{id}{type}{entree1}
+%%      \OUT{id}
+%%    \end{logigramme}
+%%
+%%  Types : and  or  not  buf  nand  nor  xor  xnor
+%%  Entrees : i1, i2, ... (auto via \INPUT)
+%% ============================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{logiTikz}[2026/03/01 v0.3 Logigrammes booleens TikZ]
+
+\RequirePackage{tikz}
+\RequirePackage{xkeyval}
+\RequirePackage{ifthen}
+\RequirePackage{etoolbox}
+\RequirePackage{xcolor}
+\RequirePackage{xstring}
+\usetikzlibrary{calc,positioning,arrows.meta}
+
+%% ============================================================
+%%  COULEURS
+%% ============================================================
+\definecolor{lgt@wire}       {RGB}{35, 35, 35}
+\definecolor{lgt@gate@fill}  {RGB}{225,232,248}
+\definecolor{lgt@gate@bord}  {RGB}{ 55, 75,145}
+\definecolor{lgt@not@fill}   {RGB}{248,235,215}
+\definecolor{lgt@not@bord}   {RGB}{155, 85, 15}
+\definecolor{lgt@in@fill}    {RGB}{210,230,255}
+\definecolor{lgt@in@bord}    {RGB}{ 25, 85,175}
+\definecolor{lgt@out@bord}   {RGB}{175, 55, 25}
+
+%% ============================================================
+%%  MACROS DE PORTE : chaque porte est dessinee par
+%%  \lgt@draw@<type>@<style>{x}{y}
+%%  et depose les coordonnees :
+%%    (lgtout@#)   sortie
+%%    (lgtin1@#)   entree haute
+%%    (lgtin2@#)   entree basse  (non deposee pour NOT/BUF)
+%%  ou # = id de la porte.
+%% ============================================================
+
+%% Raccourci : dessine + enregistre
+%% Usage : \lgt@gate{id}{type}{x_cm}{y_cm}
+\def\lgt@gate#1#2#3#4{%
+  \csname lgt@draw@#2@\lgt@curstyle\endcsname{#1}{#3}{#4}}
+
+%% ---- AMERICAIN ---- AND ------------------------------------
+\def\lgt@draw@and@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-1.1,-0.52)--(-1.1,0.52)--(0,0.52)
+      arc[start angle=90,end angle=-90,radius=0.52]--cycle;
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.42,0){AND};
+    \coordinate (lgtout@#1) at (0.52,0);
+    \coordinate (lgtin1@#1) at (-1.1,0.26);
+    \coordinate (lgtin2@#1) at (-1.1,-0.26);
+  \end{scope}}
+%% ---- AMERICAIN ---- OR -------------------------------------
+\def\lgt@draw@or@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-1.1,-0.52)..controls(-0.6,-0.52)and(-0.28,-0.28)..(0,0)
+      ..controls(-0.28,0.28)and(-0.6,0.52)..(-1.1,0.52)
+      ..controls(-0.72,0.28)and(-0.72,-0.28)..(-1.1,-0.52)--cycle;
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.50,0){OR};
+    \coordinate (lgtout@#1) at (0,0);
+    \coordinate (lgtin1@#1) at (-1.02,0.26);
+    \coordinate (lgtin2@#1) at (-1.02,-0.26);
+  \end{scope}}
+%% ---- AMERICAIN ---- NOT ------------------------------------
+\def\lgt@draw@not@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@not@fill,draw=lgt@not@bord,line width=0.8pt]
+      (-0.75,-0.42)--(-0.75,0.42)--(0.15,0)--cycle;
+    \draw[lgt@not@bord,fill=white,line width=0.8pt](0.15,0)circle(0.11);
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@not@bord] at (-0.28,0){NOT};
+    \coordinate (lgtout@#1) at (0.26,0);
+    \coordinate (lgtin1@#1) at (-0.75,0);
+  \end{scope}}
+%% ---- AMERICAIN ---- BUF ------------------------------------
+\def\lgt@draw@buf@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-0.75,-0.42)--(-0.75,0.42)--(0.22,0)--cycle;
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.25,0){BUF};
+    \coordinate (lgtout@#1) at (0.22,0);
+    \coordinate (lgtin1@#1) at (-0.75,0);
+  \end{scope}}
+%% ---- AMERICAIN ---- NAND -----------------------------------
+\def\lgt@draw@nand@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-1.1,-0.52)--(-1.1,0.52)--(0,0.52)
+      arc[start angle=90,end angle=-90,radius=0.52]--cycle;
+    \draw[lgt@gate@bord,fill=white,line width=0.8pt](0.63,0)circle(0.11);
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.38,0){NAND};
+    \coordinate (lgtout@#1) at (0.74,0);
+    \coordinate (lgtin1@#1) at (-1.1,0.26);
+    \coordinate (lgtin2@#1) at (-1.1,-0.26);
+  \end{scope}}
+%% ---- AMERICAIN ---- NOR ------------------------------------
+\def\lgt@draw@nor@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-1.1,-0.52)..controls(-0.6,-0.52)and(-0.22,-0.28)..(0.1,0)
+      ..controls(-0.22,0.28)and(-0.6,0.52)..(-1.1,0.52)
+      ..controls(-0.72,0.28)and(-0.72,-0.28)..(-1.1,-0.52)--cycle;
+    \draw[lgt@gate@bord,fill=white,line width=0.8pt](0.1,0)circle(0.11);
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.46,0){NOR};
+    \coordinate (lgtout@#1) at (0.21,0);
+    \coordinate (lgtin1@#1) at (-1.02,0.26);
+    \coordinate (lgtin2@#1) at (-1.02,-0.26);
+  \end{scope}}
+%% ---- AMERICAIN ---- XOR ------------------------------------
+\def\lgt@draw@xor@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-0.98,-0.52)..controls(-0.48,-0.52)and(-0.22,-0.28)..(0,0)
+      ..controls(-0.22,0.28)and(-0.48,0.52)..(-0.98,0.52)
+      ..controls(-0.6,0.28)and(-0.6,-0.28)..(-0.98,-0.52)--cycle;
+    \draw[lgt@gate@bord,line width=0.8pt]
+      (-1.2,-0.52)..controls(-0.82,-0.28)and(-0.82,0.28)..(-1.2,0.52);
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.42,0){XOR};
+    \coordinate (lgtout@#1) at (0,0);
+    \coordinate (lgtin1@#1) at (-0.97,0.26);
+    \coordinate (lgtin2@#1) at (-0.97,-0.26);
+  \end{scope}}
+%% ---- AMERICAIN ---- XNOR -----------------------------------
+\def\lgt@draw@xnor@american#1#2#3{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \fill[lgt@gate@fill,draw=lgt@gate@bord,line width=0.8pt]
+      (-0.98,-0.52)..controls(-0.48,-0.52)and(-0.16,-0.28)..(0.1,0)
+      ..controls(-0.16,0.28)and(-0.48,0.52)..(-0.98,0.52)
+      ..controls(-0.6,0.28)and(-0.6,-0.28)..(-0.98,-0.52)--cycle;
+    \draw[lgt@gate@bord,line width=0.8pt]
+      (-1.2,-0.52)..controls(-0.82,-0.28)and(-0.82,0.28)..(-1.2,0.52);
+    \draw[lgt@gate@bord,fill=white,line width=0.8pt](0.1,0)circle(0.11);
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@gate@bord] at (-0.38,0){XNOR};
+    \coordinate (lgtout@#1) at (0.21,0);
+    \coordinate (lgtin1@#1) at (-0.97,0.26);
+    \coordinate (lgtin2@#1) at (-0.97,-0.26);
+  \end{scope}}
+
+%% ============================================================
+%%  STYLE EUROPEEN (IEC 60617)
+%% ============================================================
+\def\lgt@eu@body#1#2#3#4#5{%
+  %% #1=id #2=x #3=y #4=label #5=bubble(true/false)
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \draw[lgt@gate@bord,fill=lgt@gate@fill,line width=0.8pt,rounded corners=3pt]
+      (-0.58,-0.42)rectangle(0.58,0.42);
+    \node[font=\bfseries\fontsize{7}{7}\selectfont,text=lgt@gate@bord] at (0,0){#4};
+    \ifthenelse{\equal{#5}{true}}{%
+      \draw[lgt@gate@bord,fill=white,line width=0.8pt](0.69,0)circle(0.10);}{}
+    \ifthenelse{\equal{#5}{true}}{%
+      \coordinate (lgtout@#1) at (0.79,0);}{%
+      \coordinate (lgtout@#1) at (0.58,0);}
+    \coordinate (lgtin1@#1) at (-0.58,0.17);
+    \coordinate (lgtin2@#1) at (-0.58,-0.17);
+  \end{scope}}
+
+\def\lgt@eu@unary#1#2#3#4#5{%
+  \begin{scope}[shift={(#2*\lgt@curunit, -#3*\lgt@curunit)}]
+    \draw[lgt@not@bord,fill=lgt@not@fill,line width=0.8pt,rounded corners=3pt]
+      (-0.58,-0.42)rectangle(0.58,0.42);
+    \node[font=\bfseries\fontsize{7}{7}\selectfont,text=lgt@not@bord] at (0,0){#4};
+    \ifthenelse{\equal{#5}{true}}{%
+      \draw[lgt@not@bord,fill=white,line width=0.8pt](0.69,0)circle(0.10);
+      \coordinate (lgtout@#1) at (0.79,0);}{%
+      \coordinate (lgtout@#1) at (0.58,0);}
+    \coordinate (lgtin1@#1) at (-0.58,0);
+  \end{scope}}
+
+\def\lgt@draw@and@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{\&}{false}}
+\def\lgt@draw@or@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{$\geq$1}{false}}
+\def\lgt@draw@not@european#1#2#3{\lgt@eu@unary{#1}{#2}{#3}{1}{true}}
+\def\lgt@draw@buf@european#1#2#3{\lgt@eu@unary{#1}{#2}{#3}{1}{false}}
+\def\lgt@draw@nand@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{\&}{true}}
+\def\lgt@draw@nor@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{$\geq$1}{true}}
+\def\lgt@draw@xor@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{=1}{false}}
+\def\lgt@draw@xnor@european#1#2#3{\lgt@eu@body{#1}{#2}{#3}{=1}{true}}
+
+%% ============================================================
+%%  REGISTRES INTERNES
+%% ============================================================
+\newcounter{lgt@icnt}
+\newcounter{lgt@gcnt}
+\newcounter{lgt@iter}
+\newcounter{lgt@jter}
+\def\lgt@curstyle{american}
+\def\lgt@curunit{1.7cm}
+
+\def\lgt@set#1#2#3#4{\expandafter\edef\csname lgt@#1@#2@#3\endcsname{#4}}
+\def\lgt@get#1#2#3{\edef\lgt@val{\csname lgt@#1@#2@#3\endcsname}}
+
+%% ============================================================
+%%  COMMANDES DE DECLARATION
+%% ============================================================
+\newcommand{\INPUT}[1]{%
+  \stepcounter{lgt@icnt}%
+  \edef\lgt@iid{i\thelgt@icnt}%
+  \lgt@set{in}{\lgt@iid}{name}{#1}%
+  \lgt@set{in}{\lgt@iid}{col}{0}}
+
+\newcommand{\GATE}[4]{%
+  \stepcounter{lgt@gcnt}%
+  \lgt@set{g}{#1}{type}{#2}%
+  \lgt@set{g}{#1}{ina}{#3}%
+  \lgt@set{g}{#1}{inb}{#4}%
+  \lgt@set{g}{#1}{unary}{false}%
+  \expandafter\edef\csname lgt@gord@\thelgt@gcnt\endcsname{#1}}
+
+\newcommand{\UGATE}[3]{%
+  \stepcounter{lgt@gcnt}%
+  \lgt@set{g}{#1}{type}{#2}%
+  \lgt@set{g}{#1}{ina}{#3}%
+  \lgt@set{g}{#1}{inb}{-}%
+  \lgt@set{g}{#1}{unary}{true}%
+  \expandafter\edef\csname lgt@gord@\thelgt@gcnt\endcsname{#1}}
+
+\newcommand{\OUT}[1]{\def\lgt@outid{#1}}
+
+%% ============================================================
+%%  CALCUL DU PLACEMENT
+%% ============================================================
+\def\lgt@colof#1{%
+  \IfBeginWith{#1}{i}{\lgt@get{in}{#1}{col}}{\lgt@get{g}{#1}{col}}}
+
+\def\lgt@rowof#1{%
+  \IfBeginWith{#1}{i}{\lgt@get{in}{#1}{row}}{\lgt@get{g}{#1}{row}}}
+
+\def\lgt@computeplacement{%
+  %% ── Lignes des entrees (espacement unitaire provisoire) ──
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@icnt+1\relax\do{%
+    \edef\lgt@iid{i\thelgt@iter}%
+    \pgfmathtruncatemacro{\lgt@irow}{\thelgt@iter-1}%
+    \lgt@set{in}{\lgt@iid}{row}{\lgt@irow}%
+    \stepcounter{lgt@iter}}%
+  %% ── Colonnes : passes repetees (tri topologique) ─────────
+  %% Initialise toutes les colonnes a 0
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
+    \edef\lgt@gid{\csname lgt@gord@\thelgt@iter\endcsname}%
+    \lgt@set{g}{\lgt@gid}{col}{0}%
+    \stepcounter{lgt@iter}}%
+  %% Repete \lgt@gcnt passes : convergence garantie en au plus N passes
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
+    \setcounter{lgt@jter}{1}%
+    \@whilenum\thelgt@jter<\numexpr\thelgt@gcnt+1\relax\do{%
+      \edef\lgt@gid{\csname lgt@gord@\thelgt@jter\endcsname}%
+      \lgt@get{g}{\lgt@gid}{ina}\edef\lgt@ina{\lgt@val}%
+      \lgt@colof{\lgt@ina}\edef\lgt@cola{\lgt@val}%
+      \lgt@get{g}{\lgt@gid}{inb}\edef\lgt@inb{\lgt@val}%
+      \ifthenelse{\equal{\lgt@inb}{-}}{\edef\lgt@colb{0}}{%
+        \lgt@colof{\lgt@inb}\edef\lgt@colb{\lgt@val}}%
+      \pgfmathtruncatemacro{\lgt@thiscol}{max(\lgt@cola,\lgt@colb)+1}%
+      \lgt@set{g}{\lgt@gid}{col}{\lgt@thiscol}%
+      \stepcounter{lgt@jter}}%
+    \stepcounter{lgt@iter}}%
+  %% lignes des portes
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
+    \edef\lgt@gid{\csname lgt@gord@\thelgt@iter\endcsname}%
+    \lgt@get{g}{\lgt@gid}{ina}\edef\lgt@ina{\lgt@val}%
+    \lgt@rowof{\lgt@ina}\edef\lgt@rowa{\lgt@val}%
+    \lgt@get{g}{\lgt@gid}{inb}\edef\lgt@inb{\lgt@val}%
+    \ifthenelse{\equal{\lgt@inb}{-}}{\edef\lgt@rowb{\lgt@rowa}}{%
+      \lgt@rowof{\lgt@inb}\edef\lgt@rowb{\lgt@val}}%
+    \pgfmathtruncatemacro{\lgt@thisrow}{(\lgt@rowa+\lgt@rowb)/2}%
+    \lgt@set{g}{\lgt@gid}{row}{\lgt@thisrow}%
+    \stepcounter{lgt@iter}}%
+}
+
+%% ============================================================
+%%  DESSIN DU CIRCUIT
+%% ============================================================
+\def\lgt@drawonewire#1#2{%
+  \IfBeginWith{#1}{i}{\def\lgt@wsrc{lgtwire@#1}}{\def\lgt@wsrc{lgtout@#1}}%
+  \draw[draw=lgt@wire,line width=0.65pt](\lgt@wsrc)-|([xshift=-0.18*\lgt@curunit]#2);
+  \draw[draw=lgt@wire,line width=0.65pt]([xshift=-0.18*\lgt@curunit]#2)--(#2);}
+
+\def\lgt@drawcircuit{%
+  %% 1. Entrees
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@icnt+1\relax\do{%
+    \edef\lgt@iid{i\thelgt@iter}%
+    \lgt@get{in}{\lgt@iid}{name}\edef\lgt@iname{\lgt@val}%
+    \lgt@get{in}{\lgt@iid}{row}\edef\lgt@irow{\lgt@val}%
+    \node[draw=lgt@in@bord,fill=lgt@in@fill,rounded corners=4pt,
+      font=\small\bfseries,text=lgt@in@bord,inner sep=4pt,line width=0.7pt]
+      (lgtinnode@\lgt@iid)
+      at ({-0.55*\lgt@curunit},{-\lgt@irow*\lgt@curunit}) {\lgt@iname};
+    \draw[draw=lgt@wire,line width=0.65pt]
+      (lgtinnode@\lgt@iid.east)--++({0.18*\lgt@curunit},0)
+      coordinate(lgtwire@\lgt@iid);
+    \stepcounter{lgt@iter}}%
+  %% 2. Portes
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
+    \edef\lgt@gid{\csname lgt@gord@\thelgt@iter\endcsname}%
+    \lgt@get{g}{\lgt@gid}{type}\edef\lgt@gtype{\lgt@val}%
+    \lgt@get{g}{\lgt@gid}{col}\edef\lgt@gcol{\lgt@val}%
+    \lgt@get{g}{\lgt@gid}{row}\edef\lgt@grow{\lgt@val}%
+    \csname lgt@draw@\lgt@gtype @\lgt@curstyle\endcsname{\lgt@gid}{\lgt@gcol}{\lgt@grow}%
+    \stepcounter{lgt@iter}}%
+  %% 3. Fils
+  \setcounter{lgt@iter}{1}%
+  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
+    \edef\lgt@gid{\csname lgt@gord@\thelgt@iter\endcsname}%
+    \lgt@get{g}{\lgt@gid}{ina}\lgt@drawonewire{\lgt@val}{lgtin1@\lgt@gid}%
+    \lgt@get{g}{\lgt@gid}{inb}%
+    \ifthenelse{\equal{\lgt@val}{-}}{}{\lgt@drawonewire{\lgt@val}{lgtin2@\lgt@gid}}%
+    \stepcounter{lgt@iter}}%
+  %% 4. Sortie
+  \draw[draw=lgt@wire,line width=0.8pt,->]
+    (lgtout@\lgt@outid)--++({0.5*\lgt@curunit},0)
+    node[right,font=\small\bfseries,text=lgt@out@bord]{\lgt@outname};}
+
+%% ============================================================
+%%  OPTIONS  (xkeyval)
+%% ============================================================
+\define@key{logiTikz}{style}{\def\lgt@curstyle{#1}}
+\define@key{logiTikz}{unit} {\def\lgt@curunit{#1}}
+\define@key{logiTikz}{color}{}
+
+%% ============================================================
+%%  ENVIRONNEMENT  logigramme
+%% ============================================================
+\newenvironment{logigramme}[2][]{%
+  \setcounter{lgt@icnt}{0}%
+  \setcounter{lgt@gcnt}{0}%
+  \def\lgt@curstyle{american}%
+  \def\lgt@curunit{1.7cm}%
+  \setkeys{logiTikz}{#1}%
+  \def\lgt@outname{#2}%
+  \def\lgt@outid{}%
+}{%
+  \lgt@computeplacement
+  \begin{tikzpicture}
+    \lgt@drawcircuit
+  \end{tikzpicture}%
+  \setcounter{lgt@icnt}{0}%
+  \setcounter{lgt@gcnt}{0}%
+}
+
+\endinput
