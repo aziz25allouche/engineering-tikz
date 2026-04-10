@@ -1,5 +1,5 @@
 %% ============================================================
-%%  logiTikz.sty  ---  Logigrammes booleens
+%%  LogiTikz.sty  ---  Logigrammes booleens
 %%  Version : 0.3  (2026)    Moteur : pdfLaTeX + TikZ/PGF
 %% ============================================================
 %%
@@ -81,7 +81,7 @@
     \fill[lgt@not@fill,draw=lgt@not@bord,line width=0.8pt]
       (-0.75,-0.42)--(-0.75,0.42)--(0.15,0)--cycle;
     \draw[lgt@not@bord,fill=white,line width=0.8pt](0.15,0)circle(0.11);
-    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@not@bord] at (-0.28,0){NOT};
+    \node[font=\bfseries\fontsize{5}{5}\selectfont,text=lgt@not@bord] at (-0.35,0){NOT};
     \coordinate (lgtout@#1) at (0.26,0);
     \coordinate (lgtin1@#1) at (-0.75,0);
   \end{scope}}
@@ -194,9 +194,8 @@
 \newcounter{lgt@icnt}
 \newcounter{lgt@gcnt}
 \newcounter{lgt@iter}
-\newcounter{lgt@jter}
 \def\lgt@curstyle{american}
-\def\lgt@curunit{1.7cm}
+\def\lgt@curunit{3cm}
 
 \def\lgt@set#1#2#3#4{\expandafter\edef\csname lgt@#1@#2@#3\endcsname{#4}}
 \def\lgt@get#1#2#3{\edef\lgt@val{\csname lgt@#1@#2@#3\endcsname}}
@@ -238,34 +237,24 @@
   \IfBeginWith{#1}{i}{\lgt@get{in}{#1}{row}}{\lgt@get{g}{#1}{row}}}
 
 \def\lgt@computeplacement{%
-  %% ── Lignes des entrees (espacement unitaire provisoire) ──
+  %% lignes des entrees
   \setcounter{lgt@iter}{1}%
   \@whilenum\thelgt@iter<\numexpr\thelgt@icnt+1\relax\do{%
     \edef\lgt@iid{i\thelgt@iter}%
     \pgfmathtruncatemacro{\lgt@irow}{\thelgt@iter-1}%
     \lgt@set{in}{\lgt@iid}{row}{\lgt@irow}%
     \stepcounter{lgt@iter}}%
-  %% ── Colonnes : passes repetees (tri topologique) ─────────
-  %% Initialise toutes les colonnes a 0
+  %% colonnes des portes
   \setcounter{lgt@iter}{1}%
   \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
     \edef\lgt@gid{\csname lgt@gord@\thelgt@iter\endcsname}%
-    \lgt@set{g}{\lgt@gid}{col}{0}%
-    \stepcounter{lgt@iter}}%
-  %% Repete \lgt@gcnt passes : convergence garantie en au plus N passes
-  \setcounter{lgt@iter}{1}%
-  \@whilenum\thelgt@iter<\numexpr\thelgt@gcnt+1\relax\do{%
-    \setcounter{lgt@jter}{1}%
-    \@whilenum\thelgt@jter<\numexpr\thelgt@gcnt+1\relax\do{%
-      \edef\lgt@gid{\csname lgt@gord@\thelgt@jter\endcsname}%
-      \lgt@get{g}{\lgt@gid}{ina}\edef\lgt@ina{\lgt@val}%
-      \lgt@colof{\lgt@ina}\edef\lgt@cola{\lgt@val}%
-      \lgt@get{g}{\lgt@gid}{inb}\edef\lgt@inb{\lgt@val}%
-      \ifthenelse{\equal{\lgt@inb}{-}}{\edef\lgt@colb{0}}{%
-        \lgt@colof{\lgt@inb}\edef\lgt@colb{\lgt@val}}%
-      \pgfmathtruncatemacro{\lgt@thiscol}{max(\lgt@cola,\lgt@colb)+1}%
-      \lgt@set{g}{\lgt@gid}{col}{\lgt@thiscol}%
-      \stepcounter{lgt@jter}}%
+    \lgt@get{g}{\lgt@gid}{ina}\edef\lgt@ina{\lgt@val}%
+    \lgt@colof{\lgt@ina}\edef\lgt@cola{\lgt@val}%
+    \lgt@get{g}{\lgt@gid}{inb}\edef\lgt@inb{\lgt@val}%
+    \ifthenelse{\equal{\lgt@inb}{-}}{\edef\lgt@colb{0}}{%
+      \lgt@colof{\lgt@inb}\edef\lgt@colb{\lgt@val}}%
+    \pgfmathtruncatemacro{\lgt@thiscol}{max(\lgt@cola,\lgt@colb)+1}%
+    \lgt@set{g}{\lgt@gid}{col}{\lgt@thiscol}%
     \stepcounter{lgt@iter}}%
   %% lignes des portes
   \setcounter{lgt@iter}{1}%
@@ -276,7 +265,7 @@
     \lgt@get{g}{\lgt@gid}{inb}\edef\lgt@inb{\lgt@val}%
     \ifthenelse{\equal{\lgt@inb}{-}}{\edef\lgt@rowb{\lgt@rowa}}{%
       \lgt@rowof{\lgt@inb}\edef\lgt@rowb{\lgt@val}}%
-    \pgfmathtruncatemacro{\lgt@thisrow}{(\lgt@rowa+\lgt@rowb)/2}%
+    \pgfmathsetmacro{\lgt@thisrow}{(\lgt@rowa+\lgt@rowb)/2 + 0.5*(\thelgt@iter - 1)}%
     \lgt@set{g}{\lgt@gid}{row}{\lgt@thisrow}%
     \stepcounter{lgt@iter}}%
 }
@@ -286,8 +275,8 @@
 %% ============================================================
 \def\lgt@drawonewire#1#2{%
   \IfBeginWith{#1}{i}{\def\lgt@wsrc{lgtwire@#1}}{\def\lgt@wsrc{lgtout@#1}}%
-  \draw[draw=lgt@wire,line width=0.65pt](\lgt@wsrc)-|([xshift=-0.18*\lgt@curunit]#2);
-  \draw[draw=lgt@wire,line width=0.65pt]([xshift=-0.18*\lgt@curunit]#2)--(#2);}
+  \draw[draw=lgt@wire,line width=0.65pt](\lgt@wsrc)-|([xshift=-0.1*\lgt@curunit]#2);
+  \draw[draw=lgt@wire,line width=0.65pt]([xshift=-0.1*\lgt@curunit]#2)--(#2);}
 
 \def\lgt@drawcircuit{%
   %% 1. Entrees
@@ -299,7 +288,7 @@
     \node[draw=lgt@in@bord,fill=lgt@in@fill,rounded corners=4pt,
       font=\small\bfseries,text=lgt@in@bord,inner sep=4pt,line width=0.7pt]
       (lgtinnode@\lgt@iid)
-      at ({-0.55*\lgt@curunit},{-\lgt@irow*\lgt@curunit}) {\lgt@iname};
+      at ({-0.8*\lgt@curunit},{-0.8*\lgt@irow*\lgt@curunit}) {\lgt@iname};
     \draw[draw=lgt@wire,line width=0.65pt]
       (lgtinnode@\lgt@iid.east)--++({0.18*\lgt@curunit},0)
       coordinate(lgtwire@\lgt@iid);
@@ -340,7 +329,7 @@
   \setcounter{lgt@icnt}{0}%
   \setcounter{lgt@gcnt}{0}%
   \def\lgt@curstyle{american}%
-  \def\lgt@curunit{1.7cm}%
+  \def\lgt@curunit{2cm}%
   \setkeys{logiTikz}{#1}%
   \def\lgt@outname{#2}%
   \def\lgt@outid{}%
@@ -352,5 +341,4 @@
   \setcounter{lgt@icnt}{0}%
   \setcounter{lgt@gcnt}{0}%
 }
-
 \endinput
