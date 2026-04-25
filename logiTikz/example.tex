@@ -1,0 +1,52 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{logiTikz}
+
+\title{LogiTikz -- Logic Circuit Diagram Generator}
+\author{Engineering Package}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Simple AND Gate}
+\begin{center}
+  \logicgraph{A & B}
+\end{center}
+
+\section{OR Gate}
+\begin{center}
+  \logicgraph{A | B}
+\end{center}
+
+\section{NOT Gate}
+\begin{center}
+  \logicgraph{~A}
+\end{center}
+
+\section{Complex Expression with Precedence}
+Expression: $(A \land B) \lor \neg C$
+\begin{center}
+  \logicgraph{(A & B) | ~C}
+\end{center}
+
+\section{XOR Expression}
+Expression: $A \oplus B \oplus C$
+\begin{center}
+  \logicgraph{A ^ B ^ C}
+\end{center}
+
+\section{Complex Mixed Expression}
+Expression: $(A \land B) \lor (C \land \neg D)$
+\begin{center}
+  \logicgraph{(A & B) | (C & ~D)}
+\end{center}
+
+\section{NAND Equivalent}
+Expression: $\neg(A \land B)$
+\begin{center}
+  \logicgraph{~(A & B)}
+\end{center}
+
+\end{document}

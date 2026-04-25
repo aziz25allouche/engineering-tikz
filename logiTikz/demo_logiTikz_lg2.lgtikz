@@ -1,0 +1,24 @@
+\begin{tikzpicture}[
+  use US style logic gates,
+  every node/.append style={font=\small},
+]
+  \node[lgin] (I1) at (0.000cm,0.000cm) {$A$};
+  \node[lgin] (I2) at (1.000cm,0.000cm) {$B$};
+  \node[and gate US,lggate] (G3) at (3.000cm,-1.600cm) {};
+  \node[not gate US,lgnot] (G4) at (6.000cm,-1.600cm) {};
+  \node[lgin] (I5) at (2.000cm,0.000cm) {$C$};
+  \node[not gate US,lgnot] (G6) at (3.000cm,-6.400cm) {};
+  \node[or gate US,lggate] (G7) at (9.000cm,-4.000cm) {};
+ \draw[lgwire] (I1.south) -- ++(0,-6);
+ \draw[lgwire] (I2.south) -- ++(0,-6);
+  \draw[lgwire] (I1.south) -- ++(0,-6) |- (G3.input 1);
+  \draw[lgwire] (I2.south) -- ++(0,-6) |- (G3.input 2);
+  \draw[lgwire] (G3.east) |- (G4.input);
+ \draw[lgwire] (I5.south) -- ++(0,-6);
+  \draw[lgwire] (I5.south) -- ++(0,-6) |- (G6.input);
+  \draw[lgwire] (G4.east) -- ++(1,0) |- (G7.input 1);
+  \draw[lgwire] (G6.east) -- ++(1,0) |- (G7.input 2);
+  \node[lgout, right=1.5cm of G7.output]
+    (lgoutn) {$$H$$};
+  \draw[lgwireA] (G7.output) -- (lgoutn.west);
+\end{tikzpicture}

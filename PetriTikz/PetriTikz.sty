@@ -1,0 +1,247 @@
+%% petritikz.sty  ── Package LaTeX pour les réseaux de Petri
+%% Auteur  : PetriTikz Generator
+%% Licence : LPPL 1.3c
+%%
+%% Utilisation :
+%%   \usepackage{petritikz}
+%%   puis \begin{tikzpicture}[petrinet] ... \end{tikzpicture}
+%%
+%% Nœuds disponibles :
+%%   place            -- cercle standard
+%%   transition       -- rectangle standard
+%%   place,enabled    -- place mise en évidence
+%%   transition,enabled -- transition franchissable (remplie)
+%%
+%% Commandes de marquage :
+%%   tokens=N         -- N jetons dans la place (N ∈ {1,...,6})
+%%
+%% Commandes de dessin :
+%%   \draw[arc]       -- arc orienté
+%%   \draw[inhibitor] -- arc inhibiteur (cercle terminal)
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{PetriTikz}[2024/01/01 v1.0 PetriTikz - Réseaux de Petri avec TikZ]
+
+\RequirePackage{tikz}
+\RequirePackage{xcolor}
+\RequirePackage{ifthen}
+\RequirePackage{calc}
+
+\usetikzlibrary{arrows.meta, shapes.geometric, positioning,
+                decorations.pathmorphing, calc, fit, backgrounds}
+
+%% ─────────────────────────────────────────────
+%%  Palette de couleurs
+%% ─────────────────────────────────────────────
+\definecolor{ptPlaceFill}      {RGB}{220,235,255}
+\definecolor{ptPlaceBorder}    {RGB}{ 30, 80,160}
+\definecolor{ptTransFill}      {RGB}{255,235,200}
+\definecolor{ptTransBorder}    {RGB}{180, 80,  0}
+\definecolor{ptEnabledFill}    {RGB}{ 80,180, 80}
+\definecolor{ptEnabledBorder}  {RGB}{ 20,100, 20}
+\definecolor{ptTokenColor}     {RGB}{ 20, 40,120}
+\definecolor{ptArcColor}       {RGB}{ 50, 50, 50}
+\definecolor{ptWeightColor}    {RGB}{150,  0,  0}
+\definecolor{ptInhibitorColor} {RGB}{180, 20, 20}
+
+%% ─────────────────────────────────────────────
+%%  Clé « tokens » avec rendu automatique
+%% ─────────────────────────────────────────────
+\pgfkeys{
+  /tikz/tokens/.style={
+    /tikz/append after command={%
+      \pgfextra{%
+        \let\currentnode\tikzlastnode
+        \petritikz@drawtokens{##1}{\currentnode}% <-- Added extra #
+      }%
+    }%
+  }
+}
+
+
+%% Macro interne : dessine les jetons selon leur nombre
+\newcommand{\petritikz@drawtokens}[2]{%
+  \ifthenelse{#1 = 1}{%
+    \fill[ptTokenColor] (#2) circle (2.5pt);
+  }{%
+  \ifthenelse{#1 = 2}{%
+    \fill[ptTokenColor] ([xshift=-5pt]#2) circle (2pt)
+                        ([xshift= 5pt]#2) circle (2pt);
+  }{%
+  \ifthenelse{#1 = 3}{%
+    \fill[ptTokenColor] ([xshift=-5pt,yshift=-3pt]#2) circle (2pt)
+                        ([xshift= 5pt,yshift=-3pt]#2) circle (2pt)
+                        ([yshift= 4pt]#2)              circle (2pt);
+  }{%
+  \ifthenelse{#1 = 4}{%
+    \fill[ptTokenColor] ([xshift=-5pt,yshift=-4pt]#2) circle (1.8pt)
+                        ([xshift= 5pt,yshift=-4pt]#2) circle (1.8pt)
+                        ([xshift=-5pt,yshift= 4pt]#2) circle (1.8pt)
+                        ([xshift= 5pt,yshift= 4pt]#2) circle (1.8pt);
+  }{%
+  \ifthenelse{#1 = 5}{%
+    \fill[ptTokenColor] ([xshift=-5pt,yshift=-4pt]#2) circle (1.5pt)
+                        ([xshift= 5pt,yshift=-4pt]#2) circle (1.5pt)
+                        ([xshift=-5pt,yshift= 4pt]#2) circle (1.5pt)
+                        ([xshift= 5pt,yshift= 4pt]#2) circle (1.5pt)
+                        (#2)                           circle (1.5pt);
+  }{%
+    % 6+ jetons : chiffre centré
+    \node[ptTokenColor, font=\footnotesize\bfseries] at (#2) {#1};
+  }}}}}%
+}
+
+%% ─────────────────────────────────────────────
+%%  Styles TikZ principaux
+%% ─────────────────────────────────────────────
+\tikzset{
+  %% ── Place standard ─────────────────────────
+  %% place/.style={
+  %%   circle,
+  %%   draw=ptPlaceBorder,
+  %%   fill=ptPlaceFill,
+  %%   line width=1.2pt,
+  %%   minimum size=22pt,
+  %%   inner sep=0pt,
+  %%   font=\small,
+  %% },
+
+  %% ── Place activable / mise en évidence ─────
+  %% place_enabled/.style={
+  %%   circle,
+  %%   draw=ptEnabledBorder,
+  %%   fill=ptEnabledFill!40,
+  %%   line width=1.6pt,
+  %%   minimum size=22pt,
+  %%   inner sep=0pt,
+  %%   font=\small,
+  %% },
+
+  %% ── Place capacité bornée (double cercle) ──
+  place,bounded/.style={
+    circle,
+    draw=ptPlaceBorder,
+    fill=ptPlaceFill,
+    line width=1.2pt,
+    minimum size=22pt,
+    inner sep=0pt,
+    double,
+    double distance=2pt,
+    font=\small,
+  },
+
+  %% ── Transition standard ────────────────────
+  transition/.style={
+    rectangle,
+    draw=ptTransBorder,
+    fill=ptTransFill,
+    line width=1.2pt,
+    minimum height=22pt,
+    minimum width=8pt,
+    inner sep=0pt,
+    font=\small,
+  },
+
+  %% ── Transition activable (franchissable) ───
+  transition,enabled/.style={
+    rectangle,
+    draw=ptEnabledBorder,
+    fill=ptEnabledFill,
+    line width=1.6pt,
+    minimum height=22pt,
+    minimum width=8pt,
+    inner sep=0pt,
+    font=\small,
+  },
+
+  %% ── Transition temporelle ──────────────────
+  %% transition,timed/.style={
+  %%   rectangle,
+  %%   draw=ptTransBorder,
+  %%   fill=ptTransFill!60,
+  %%   line width=1.2pt,
+  %%   minimum height=22pt,
+  %%   minimum width=8pt,
+  %%   inner sep=0pt,
+  %%   double,
+  %%   double distance=1.5pt,
+  %%   font=\small,
+  %% },
+
+  %% ── Arc orienté standard ───────────────────
+  %% arc/.style={
+  %%   draw=ptArcColor,
+  %%   -{Latex[length=6pt,width=4pt]},
+  %%   line width=1pt,
+  %%   shorten >=2pt,
+  %%   shorten <=2pt,
+  %% },
+
+  %% ── Arc inhibiteur (terminé par un cercle) ─
+  inhibitor/.style={
+    draw=ptInhibitorColor,
+    -{Circle[length=5pt,width=5pt,open]},
+    line width=1pt,
+    shorten >=2pt,
+    shorten <=2pt,
+    dashed,
+  },
+
+  %% ── Arc de lecture (test) ──────────────────
+  read arc/.style={
+    draw=ptPlaceBorder,
+    line width=0.8pt,
+    shorten >=2pt,
+    shorten <=2pt,
+    dotted,
+  },
+
+  %% ── Étiquette de poids ─────────────────────
+  %% weight/.style={
+  %%   font=\footnotesize\bfseries,
+  %%   text=ptWeightColor,
+  %%   fill=white,
+  %%   inner sep=1.5pt,
+  %%   midway,
+  %% },
+
+  %% ── Conteneur de sous-réseau ───────────────
+  %% subnet/.style={
+  %%   draw=gray!60,
+  %%   dashed,
+  %%   rounded corners=6pt,
+  %%   fill=gray!5,
+  %%   inner sep=8pt,
+  %% },
+}
+
+%% \petritoken{nœud} : jeton unique au centre
+\newcommand{\petritoken}[1]{%
+  \fill[ptTokenColor] (#1) circle (2.5pt);
+}
+
+%% \petrimark{nœud}{N} : N jetons
+\newcommand{\petrimark}[2]{%
+  \petritikz@drawtokens{#2}{#1}%
+}
+
+%% \petriarc{source}{cible}[poids]
+\newcommand{\petriarc}[3][1]{%
+  \draw[arc] (#2) -- node[weight]{\ifthenelse{\equal{#1}{1}}{}{#1}} (#3);
+}
+
+%% \petriinhibitor{source}{cible}
+\newcommand{\petriinhibitor}[2]{%
+  \draw[inhibitor] (#1) -- (#2);
+}
+
+%% ─────────────────────────────────────────────
+%%  Environnement raccourci
+%% ─────────────────────────────────────────────
+\newenvironment{petrienv}[1][petrinet]{%
+  \begin{tikzpicture}[#1]
+}{%
+  \end{tikzpicture}
+}
+
+\endinput

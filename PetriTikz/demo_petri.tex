@@ -1,0 +1,372 @@
+% demo_petritikz.tex
+% ─────────────────────────────────────────────────────────────────
+%
+%  WORKFLOW :
+%    1.  python petritikz.py --build-demo
+%        → génère fig_*.tex  et  data_*.py  dans le dossier courant
+%    2.  pdflatex demo_petritikz.tex
+%
+%  Ce fichier ne contient AUCUNE coordonnée TikZ.
+%  Chaque figure est un \input{fig_*.tex} produit automatiquement
+%  par petritikz.py à partir des seules matrices Pre et Post.
+%
+% ─────────────────────────────────────────────────────────────────
+
+\documentclass[a4paper,11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{PetriTikz}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,array}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{fancyvrb}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\geometry{margin=2.5cm}
+
+\definecolor{pygreen}{RGB}{20,120,50}
+\definecolor{pybg}   {RGB}{245,248,245}
+
+\newtcolorbox{pybox}{
+  colback=pybg, colframe=pygreen!60,
+  fonttitle=\bfseries\ttfamily\small,
+  title={petritikz.py},
+  left=5pt, right=5pt, top=4pt, bottom=4pt
+}
+\newtcolorbox{resbox}{
+  colback=blue!4, colframe=blue!30,
+  fonttitle=\bfseries\small, title={Résultat calculé},
+  left=5pt, right=5pt, top=4pt, bottom=4pt
+}
+
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+\title{\textbf{PetriTikz}\\[4pt]
+  {\large Tracé automatique depuis les matrices Pre et Post}}
+\author{PetriTikz Generator}
+\date{\today}
+
+% ─────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+
+\begin{tcolorbox}[colback=gray!8,colframe=gray!40,fonttitle=\bfseries,
+  title={Principe}]
+L'utilisateur ne fournit que les matrices \textbf{Pre} et \textbf{Post}.
+\texttt{petritikz.py} calcule automatiquement :
+les coordonnées $(x,y)$ de chaque place et transition,
+les arcs à tracer,
+le marquage et les transitions activables.
+Le code TikZ est entièrement généré --- aucune coordonnée n'est
+écrite à la main dans ce document.
+\end{tcolorbox}
+
+\bigskip
+% ═══════════════════════════════════════════════════════════════════
+\section{Réseau producteur--consommateur}
+% ═══════════════════════════════════════════════════════════════════
+
+\subsection{Définition : uniquement Pre et Post}
+
+L'utilisateur définit son réseau en Python avec seulement les matrices :
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+places = [Place("p1", tokens=1, label="libre"),
+          Place("p2",            label="produit"),
+          Place("p3", tokens=1, label="vide"),
+          Place("p4",            label="plein")]
+
+transitions = [Transition("t1", label="produire"),
+               Transition("t2", label="consommer")]
+
+pre  = [[1, 0, 0, 0],   # t1 consomme p1
+        [0, 1, 1, 0]]   # t2 consomme p2 et p3
+
+post = [[0, 1, 1, 0],   # t1 produit  p2 et p3
+        [1, 0, 0, 1]]   # t2 produit  p1 et p4
+
+net  = PetriNet("Producteur-Consommateur", places, transitions, pre, post)
+tikz = generate_tikz(net, layout="circle")   # <-- tout est calculé ici
+\end{Verbatim}
+\end{pybox}
+
+\subsection{Matrice d'incidence  ---  \texttt{incidence\_matrix()}}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+C = net.incidence_matrix()
+# C = Post - Pre
+# C = [[-1,  1,  1,  0],
+#      [ 1, -1, -1,  1]]
+\end{Verbatim}
+\end{pybox}
+
+\begin{resbox}
+\[
+  \text{Pre} =
+  \begin{pmatrix}1&0&0&0\\0&1&1&0\end{pmatrix}
+  \qquad
+  \text{Post} =
+  \begin{pmatrix}0&1&1&0\\1&0&0&1\end{pmatrix}
+  \qquad
+  C =
+  \begin{pmatrix}-1&1&1&0\\1&-1&-1&1\end{pmatrix}
+\]
+\end{resbox}
+
+\subsection{Marquage et transitions activables  ---  \texttt{enabled\_transitions()}}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+# M0 est lu depuis les tokens definis sur les places
+# M0 = [1, 0, 1, 0]
+#
+# t activable  ssi  M0[p] >= pre[t][p]  pour tout p
+# t1 : [1,0,1,0] >= [1,0,0,0]  -> True   (vert dans le schema)
+# t2 : [1,0,1,0] >= [0,1,1,0]  -> False  (p2 manque)
+enabled = net.enabled_transitions()   # [True, False]
+\end{Verbatim}
+\end{pybox}
+
+\begin{resbox}
+$M_0 = (1,0,1,0)$ \qquad
+Activables : $\mathcal{T}_{\mathrm{act}} = \{t_1\}$
+\quad {\color{green!60!black}$t_1$ (verte dans le schéma)},
+{\color{red!70!black}$t_2$ bloquée}
+\end{resbox}
+
+\subsection{Schéma généré automatiquement  ---  layout \texttt{circle}}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+tikz = generate_tikz(net, layout="circle")
+# Etapes internes de generate_tikz() :
+#   1. _layout_circle()  -> calcule (x,y) de chaque noeud
+#   2. enabled_transitions() -> style vert/blanc automatique
+#   3. emet \node[place] et \node[transition] avec les coords
+#   4. parcourt pre[t][p] > 0  -> \draw[arc] (p) -- (t)
+#   5. parcourt post[t][p] > 0 -> \draw[arc] (t) -- (p)
+\end{Verbatim}
+\end{pybox}
+
+\begin{center}
+% ── 100 % généré par petritikz.py --build-demo ──────────────────
+\input{fig_producer_circle}
+\end{center}
+
+\subsection{Franchissement  ---  \texttt{fire()}}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+M1 = net.fire(0)            # franchit t1 depuis M0
+# M1 = M0 + C[t1] = [1,0,1,0] + [-1,1,1,0] = [0,1,2,0]
+
+M2 = net.fire(1, M1)        # franchit t2 depuis M1
+# M2 = M1 + C[t2] = [0,1,2,0] + [1,-1,-1,1] = [1,0,1,1]
+
+M3 = net.fire(0, M2)        # franchit t1 depuis M2
+# M3 = [0, 1, 2, 1]
+
+M4 = net.fire(1, M3)        # franchit t2 depuis M3
+# M4 = [1, 0, 1, 2]
+\end{Verbatim}
+\end{pybox}
+
+\begin{resbox}
+% Valeurs issues de data_producer.py (HISTORY, T_SEQ)
+% T_SEQ   = ['t1', 't2', 't1', 't2']
+% HISTORY = [[1,0,1,0],[0,1,2,0],[1,0,1,1],[0,1,2,1],[1,0,1,2]]
+\[
+  (1,0,1,0)
+  \xrightarrow{t_1}(0,1,2,0)
+  \xrightarrow{t_2}(1,0,1,1)
+  \xrightarrow{t_1}(0,1,2,1)
+  \xrightarrow{t_2}(1,0,1,2)\;\cdots
+\]
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{c c C{1cm}C{1cm}C{1cm}C{1cm} l}
+  \toprule
+  & \textbf{Trans.} & $p_1$ & $p_2$ & $p_3$ & $p_4$ & \textbf{Activable(s)} \\
+  \midrule
+  $M_0$ & ---  & 1 & 0 & 1 & 0 & $t_1$ \\
+  $M_1$ & $t_1$ & 0 & 1 & 2 & 0 & $t_2$ \\
+  $M_2$ & $t_2$ & 1 & 0 & 1 & 1 & $t_1$ \\
+  $M_3$ & $t_1$ & 0 & 1 & 2 & 1 & $t_2$ \\
+  $M_4$ & $t_2$ & 1 & 0 & 1 & 2 & $t_1$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\end{resbox}
+
+\noindent
+\textit{$p_4$ croît indéfiniment : le réseau est non borné.}
+
+\subsection{Comparaison des layouts automatiques}
+
+Les trois figures suivantes montrent \emph{le même réseau}
+--- \textbf{même matrices Pre/Post, même arcs} ---
+disposé par trois algorithmes différents, tous appelés depuis Python.
+Aucune coordonnée n'est modifiée manuellement entre les trois.
+
+\bigskip
+\begin{center}
+\begin{tabular}{ccc}
+  \textbf{circle} & \textbf{bipartite} & \textbf{grid} \\[4pt]
+  % Trois \input{} générés par --build-demo
+  \input{fig_producer_circle}
+  &
+  \input{fig_producer_bipartite}
+  &
+  \input{fig_producer_grid}
+\end{tabular}
+\end{center}
+
+% ═══════════════════════════════════════════════════════════════════
+\section{Réseau d'exclusion mutuelle}
+% ═══════════════════════════════════════════════════════════════════
+
+\subsection{Définition via Pre et Post}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+pre  = [[1,0,1,0,0],   # t1: p1+p3 -> entrer 1 (prend le mutex)
+        [0,0,0,1,0],   # t2: p4    -> sortir 1
+        [0,1,1,0,0],   # t3: p2+p3 -> entrer 2 (prend le mutex)
+        [0,0,0,0,1]]   # t4: p5    -> sortir 2
+
+post = [[0,0,0,1,0],   # t1: p4          (SC 1 occupe)
+        [1,0,1,0,0],   # t2: p1+p3       (libere le mutex)
+        [0,0,0,0,1],   # t3: p5          (SC 2 occupe)
+        [0,1,1,0,0]]   # t4: p2+p3       (libere le mutex)
+\end{Verbatim}
+\end{pybox}
+
+\begin{resbox}
+\[
+  C =
+  \begin{pmatrix}
+   -1 & 0 & -1 &  1 & 0 \\
+    1 & 0 &  1 & -1 & 0 \\
+    0 &-1 & -1 &  0 & 1 \\
+    0 & 1 &  1 &  0 &-1
+  \end{pmatrix}
+\]
+$M_0 = (1,1,1,0,0)$ \qquad
+Activables : $\{t_1, t_3\}$
+\end{resbox}
+
+\subsection{Schéma  ---  layout \texttt{bipartite}}
+
+\begin{center}
+\input{fig_mutex_bipartite}
+\end{center}
+
+\subsection{Preuve de l'exclusion mutuelle  ---  \texttt{fire()}}
+
+\begin{pybox}
+\begin{Verbatim}[fontsize=\small]
+M1 = net2.fire(0)              # t1 entre en section critique
+# M1 = [1,1,1,0,0] + [-1,0,-1,1,0] = [0,1,0,1,0]
+
+enabled_M1 = net2.enabled_transitions(M1)
+# t1 : [0,1,0,1,0] >= [1,0,1,0,0]  -> False  (p3=0 !)
+# t2 : [0,1,0,1,0] >= [0,0,0,1,0]  -> True
+# t3 : [0,1,0,1,0] >= [0,1,1,0,0]  -> False  (p3=0 = mutex pris)
+# t4 : [0,1,0,1,0] >= [0,0,0,0,1]  -> False
+# => seul t2 activable -> exclusion mutuelle GARANTIE
+\end{Verbatim}
+\end{pybox}
+
+\begin{resbox}
+% Valeurs issues de data_mutex.py
+\[
+  M_0=(1,1,1,0,0)
+  \xrightarrow{t_1}
+  M_1=(0,1,0,1,0)
+\]
+Après $t_1$ : $p_3=0$ \;$\Rightarrow$\; $t_3$ bloquée.
+Seul $t_2$ (sortir~1) est activable.
+\textbf{Les deux processus ne peuvent jamais être en section critique simultanément.}
+\end{resbox}
+
+% ═══════════════════════════════════════════════════════════════════
+\section{Layout par simulation de forces  ---  \texttt{force}}
+% ═══════════════════════════════════════════════════════════════════
+
+\texttt{generate\_tikz(net, layout="force")} exécute un algorithme
+de Fruchterman--Reingold : les nœuds reliés s'attirent,
+tous se repoussent.  Les coordonnées convergent vers un équilibre.
+
+\begin{center}
+\begin{tabular}{cc}
+  \textbf{Producteur / consommateur} & \textbf{Exclusion mutuelle} \\[4pt]
+  \input{fig_producer_force}
+  &
+  \input{fig_mutex_force}
+\end{tabular}
+\end{center}
+
+% ═══════════════════════════════════════════════════════════════════
+\section{Récapitulatif --- méthodes Python disponibles}
+% ═══════════════════════════════════════════════════════════════════
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{l p{5cm} p{4.5cm}}
+  \toprule
+  \textbf{Appel Python} & \textbf{Rôle} & \textbf{Exemple} \\
+  \midrule
+  \texttt{PetriNet(..., pre, post)}
+    & Crée le réseau
+    & objets places + matrices \\
+  \texttt{net.incidence\_matrix()}
+    & $C = \text{Post}-\text{Pre}$
+    & $[[-1,1,1,0],\ldots]$ \\
+  \texttt{net.enabled\_transitions()}
+    & $M_0 \geq \text{pre}[t]\ \forall p$
+    & \texttt{[True, False]} \\
+  \texttt{net.fire(t, M)}
+    & $M' = M + C[t]$
+    & $(0,1,2,0)$ \\
+  \texttt{net.reachability\_set()}
+    & BFS depuis $M_0$
+    & ensemble des marquages \\
+  \texttt{generate\_tikz(net, layout)}
+    & \textbf{Schéma TikZ complet}
+    & \verb|\begin{tikzpicture}…| \\
+  \texttt{generate\_full\_document(net)}
+    & Document \LaTeX{} autonome
+    & \verb|\documentclass…| \\
+  \texttt{build\_demo()}
+    & Génère tous les fragments
+    & \texttt{fig\_*.tex} \\
+  \texttt{load\_from\_json(path)}
+    & Import réseau JSON
+    & --- \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Commandes CLI}
+
+\begin{Verbatim}[fontsize=\small,frame=single]
+# Génère tous les fragments pour ce demo
+python petritikz.py --build-demo
+
+# Génère un document complet pour un exemple intégré
+python petritikz.py --example producer --layout circle  --output out.tex
+python petritikz.py --example mutex    --layout force
+
+# Depuis un fichier JSON
+python petritikz.py --json mon_reseau.json --layout bipartite
+
+# Fragment TikZ seul (a inclure avec \input{})
+python petritikz.py --example producer --tikz-only --output fig.tex
+\end{Verbatim}
+
+\end{document}
