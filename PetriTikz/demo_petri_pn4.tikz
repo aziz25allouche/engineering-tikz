@@ -1,0 +1,21 @@
+\begin{tikzpicture}[petrinet]
+  %% Places  (coord. calculees par Python depuis Pre/Post)
+  \node[place,label=above:libre] (p0) at (-3.75,2.0) {};
+  \petritokens{p0}{1}
+  \node[place,label=above:produit] (p1) at (-1.25,2.0) {};
+  \node[place,label=above:vide] (p2) at (1.25,2.0) {};
+  \petritokens{p2}{1}
+  \node[place,label=above:plein] (p3) at (3.75,2.0) {};
+  %% Transitions
+  \node[enabled transition,label=below:produire] (t0) at (-1.25,0.0) {};
+  \node[transition,label=below:consommer] (t1) at (0.0,0.0) {};
+  %% Arcs Pre  P->T
+  \draw[arc] (p0) -- (t0);
+  \draw[arc] (p1) -- (t1);
+  \draw[arc] (p2) -- (t1);
+  %% Arcs Post T->P
+  \draw[arc] (t0) -- (p1);
+  \draw[arc] (t0) -- (p2);
+  \draw[arc] (t1) -- (p0);
+  \draw[arc] (t1) -- (p3);
+\end{tikzpicture}

@@ -1,36 +1,36 @@
 \documentclass[a4paper,11pt]{article}
 \usepackage{petritikz}
 \usepackage{amsmath}
-\title{\textbf{Réseau de Petri} --- Producteur–Consommateur}
-\author{PetriTikz Generator}
+\title{\textbf{Reseau de Petri}}
+\author{PetriTikz}
 \date{\today}
 \begin{document}
 \maketitle
 
-\section*{Schéma (layout : circle)}
-
 \begin{center}
-% Généré par petritikz.py  |  layout=circle
+% PetriTikz | layout=circle
 % Pre  = [[1, 0, 0, 0], [0, 1, 1, 0]]
 % Post = [[0, 1, 1, 0], [1, 0, 0, 1]]
 \begin{tikzpicture}[petrinet]
 
-  % ── Places (coordonnées calculées depuis Pre/Post) ──────
-  \node[place,label=above:{libre},tokens=1]  (p1) at (0.0,3.5) {};
-  \node[place,label=above:{produit}]  (p2) at (-3.5,0.0) {};
-  \node[place,label=above:{vide},tokens=1]  (p3) at (-0.0,-3.5) {};
-  \node[place,label=above:{plein}]  (p4) at (3.5,-0.0) {};
+  % Places  (positions calculees par Python depuis Pre/Post)
+  \node[place,label=above:libre] (p1) at (0.0,3.5) {};
+  \petritokens{p1}{1}
+  \node[place,label=above:produit] (p2) at (-3.5,0.0) {};
+  \node[place,label=above:vide] (p3) at (-0.0,-3.5) {};
+  \petritokens{p3}{1}
+  \node[place,label=above:plein] (p4) at (3.5,-0.0) {};
 
-  % ── Transitions ──────────────────────────────────────
-  \node[transition,enabled,label=below:{produire}]  (t1) at (-2.0,0.0) {};
-  \node[transition,label=below:{consommer}]  (t2) at (2.0,-0.0) {};
+  % Transitions
+  \node[enabled transition,label=below:produire] (t1) at (-2.0,0.0) {};
+  \node[transition,label=below:consommer] (t2) at (2.0,-0.0) {};
 
-  % ── Arcs Pre  P→T  (lus depuis net.pre) ────────────
+  % Arcs Pre : P -> T  (depuis net.pre)
   \draw[arc] (p1) -- (t1);
   \draw[arc] (p2) -- (t2);
   \draw[arc] (p3) -- (t2);
 
-  % ── Arcs Post T→P  (lus depuis net.post) ───────────
+  % Arcs Post : T -> P  (depuis net.post)
   \draw[arc] (t1) -- (p2);
   \draw[arc] (t1) -- (p3);
   \draw[arc] (t2) -- (p1);
@@ -39,32 +39,17 @@
 \end{tikzpicture}
 \end{center}
 
-\section*{Matrices Pre et Post}
-\[
-  \text{Pre}  = \begin{pmatrix}
-    1 & 0 & 0 & 0 \\
+\[ \text{Pre}=\begin{pmatrix}
+     \\1 & 0 & 0 & 0
     0 & 1 & 1 & 0
-\end{pmatrix}
-  \qquad
-  \text{Post} = \begin{pmatrix}
-    0 & 1 & 1 & 0 \\
+\end{pmatrix}\quad\text{Post}=\begin{pmatrix}
+     \\0 & 1 & 1 & 0
     1 & 0 & 0 & 1
-\end{pmatrix}
-\]
-
-\section*{Matrice d'incidence}
-\[
-  C = \text{Post} - \text{Pre} = \begin{pmatrix}
-    -1 & 1 & 1 & 0 \\
+\end{pmatrix}\quadC=\begin{pmatrix}
+     \\-1 & 1 & 1 & 0
     1 & -1 & -1 & 1
-\end{pmatrix}
-\]
+\end{pmatrix}\]
 
-\section*{Marquage initial et activabilité}
-\[
-  M_0 = (1, 0, 1, 0)
-  \qquad
-  \mathcal{T}_\text{act} = \{ t1 \}
-\]
+\[ M_0=(1,0,1,0) \qquad \mathcal{T}_{\text{act}}=\{t1\} \]
 
 \end{document}
