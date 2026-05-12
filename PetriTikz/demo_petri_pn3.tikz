@@ -1,21 +1,21 @@
 \begin{tikzpicture}[petrinet]
   %% Places  (coord. calculees par Python depuis Pre/Post)
-  \node[place,label=above:libre] (p0) at (0.0,3.0) {};
+  \node[place,label=above:libre] (p0) at (-3.0,0.0) {};
   \petritokens{p0}{1}
-  \node[place,label=above:produit] (p1) at (0.0,1.0) {};
-  \node[place,label=above:vide] (p2) at (0.0,-1.0) {};
+  \node[place,label=above:produit] (p1) at (-1.0,0.0) {};
+  \node[place,label=above:vide] (p2) at (1.0,0.0) {};
   \petritokens{p2}{1}
-  \node[place,label=above:plein] (p3) at (0.0,-3.0) {};
+  \node[place,label=above:plein] (p3) at (3.0,0.0) {};
   %% Transitions
-  \node[enabled transition,label=below:produire] (t0) at (5.0,1.0) {};
-  \node[transition,label=below:consommer] (t1) at (5.0,-1.0) {};
+  \node[enabled transition,label=above:produire] (t0) at (-1.0,5.0) {};
+  \node[transition,label=above:consommer] (t1) at (1.0,5.0) {};
   %% Arcs Pre  P->T
   \draw[arc] (p0) -- (t0);
   \draw[arc] (p1) -- (t1);
-  \draw[arc] (p2) -- (t1);
+  \draw[->, bend left=60] (p2) to node[midway] {} (t1);
   %% Arcs Post T->P
-  \draw[arc] (t0) -- (p1);
-  \draw[arc] (t0) -- (p2);
-  \draw[arc] (t1) -- (p0);
-  \draw[arc] (t1) -- (p3);
+  \draw[->, bend left=60] (t0) to node[midway] {} (p1);
+  \draw[arc] (t0) --  (p2);
+  \draw[->, bend left=60] (t1) to node[midway] {} (p0);
+  \draw[arc] (t1) --  (p3);
 \end{tikzpicture}

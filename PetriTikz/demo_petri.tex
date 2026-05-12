@@ -55,99 +55,14 @@
 \section{Reseau producteur--consommateur}
 % ═══════════════════════════════════════════════════════════════════
 
-\subsection{Schema genere automatiquement}
+\subsection{Schema généré automatiquement}
 
 \begin{center}
-\petrinet{--pre 1,0,0,0;0,1,1,0 --post 0,1,1,0;1,0,0,1 --places libre,produit,vide,plein --trans produire,consommer --marking 1,0,1,0 --layout circle}
+\petrinet{--pre 0,1,0;1,0,0;0,0,1;0,1,0 --post 1,0,0;0,1,0;0,1,0;0,0,1 --marking 1,0,1,0 --layout hierarchical --struct V}
 \end{center}
 
-\noindent
-Python a calcule les coordonnees depuis \texttt{pre/post},
-trace les arcs en parcourant les matrices,
-colore $t_0$ en vert car $M_0[p_0]=1 \geq \text{pre}[t_0][p_0]=1$.
-
-\begin{resbox}
-\[
-  \text{Pre}=\begin{pmatrix}1&0&0&0\\0&1&1&0\end{pmatrix}
-  \quad
-  \text{Post}=\begin{pmatrix}0&1&1&0\\1&0&0&1\end{pmatrix}
-  \quad
-  C=\begin{pmatrix}-1&1&1&0\\1&-1&-1&1\end{pmatrix}
-\]
-$M_0=(1,0,1,0)$ \qquad $\mathcal{T}_{\mathrm{act}}=\{t_0\}$
-\end{resbox}
-
-% ═══════════════════════════════════════════════════════════════════
-\section{Comparaison des layouts --- meme Pre/Post}
-% ═══════════════════════════════════════════════════════════════════
-
-Trois appels \texttt{\textbackslash petrinet\{\}}, seul \texttt{--layout} change.
-
-\bigskip
 \begin{center}
-\begin{minipage}{0.3\linewidth}\centering
-  \textbf{circle}\\[6pt]
-  \scalebox{0.48}{%
-    \petrinet{--pre 1,0,0,0;0,1,1,0 --post 0,1,1,0;1,0,0,1 --places libre,produit,vide,plein --trans produire,consommer --marking 1,0,1,0 --layout circle}%
-  }
-\end{minipage}%
-\hfill
-\begin{minipage}{0.3\linewidth}\centering
-  \textbf{bipartite}\\[6pt]
-  \scalebox{0.48}{%
-    \petrinet{--pre 1,0,0,0;0,1,1,0 --post 0,1,1,0;1,0,0,1 --places libre,produit,vide,plein --trans produire,consommer --marking 1,0,1,0 --layout bipartite}%
-  }
-\end{minipage}%
-\hfill
-\begin{minipage}{0.3\linewidth}\centering
-  \textbf{grid}\\[6pt]
-  \scalebox{0.48}{%
-    \petrinet{--pre 1,0,0,0;0,1,1,0 --post 0,1,1,0;1,0,0,1 --places libre,produit,vide,plein --trans produire,consommer --marking 1,0,1,0 --layout grid}%
-  }
-\end{minipage}
-\end{center}
-
-% ═══════════════════════════════════════════════════════════════════
-\section{Reseau d'exclusion mutuelle}
-% ═══════════════════════════════════════════════════════════════════
-
-\begin{codebox}
-\begin{Verbatim}[fontsize=\small]
-\petrinet{--pre     1,0,1,0,0;0,0,0,1,0;0,1,1,0,0;0,0,0,0,1
-          --post    0,0,0,1,0;1,0,1,0,0;0,0,0,0,1;0,1,1,0,0
-          --places  attente1,attente2,mutex,SC1,SC2
-          --trans   entrer1,sortir1,entrer2,sortir2
-          --marking 1,1,1,0,0
-          --layout  bipartite}
-\end{Verbatim}
-\end{codebox}
-
-\begin{center}
-\petrinet{--pre 1,0,1,0,0;0,0,0,1,0;0,1,1,0,0;0,0,0,0,1 --post 0,0,0,1,0;1,0,1,0,0;0,0,0,0,1;0,1,1,0,0 --places attente1,attente2,mutex,SC1,SC2 --trans entrer1,sortir1,entrer2,sortir2 --marking 1,1,1,0,0 --layout bipartite}
-\end{center}
-
-\begin{resbox}
-$p_2$ (mutex) est consomme par $t_0$ ET $t_2$ :
-un seul peut franchir, l'autre est bloque.
-\textbf{Exclusion mutuelle garantie.}
-\end{resbox}
-
-% ═══════════════════════════════════════════════════════════════════
-\section{Layout force (Fruchterman--Reingold)}
-% ═══════════════════════════════════════════════════════════════════
-
-\begin{center}
-\begin{minipage}{0.45\linewidth}\centering
-  \textbf{Producteur/consommateur}\\[6pt]
-  \petrinet{--pre 1,0,0,0;0,1,1,0 --post 0,1,1,0;1,0,0,1 --places libre,produit,vide,plein --trans produire,consommer --marking 1,0,1,0 --layout force}
-\end{minipage}%
-\hfill
-\begin{minipage}{0.45\linewidth}\centering
-  \textbf{Exclusion mutuelle}\\[6pt]
-  \scalebox{0.75}{%
-    \petrinet{--pre 1,0,1,0,0;0,0,0,1,0;0,1,1,0,0;0,0,0,0,1 --post 0,0,0,1,0;1,0,1,0,0;0,0,0,0,1;0,1,1,0,0 --places attente1,attente2,mutex,SC1,SC2 --trans entrer1,sortir1,entrer2,sortir2 --marking 1,1,1,0,0 --layout force}%
-  }
-\end{minipage}
+\petrinet{--pre 1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,0;0,1,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0;0,0,0,0,0,1 --post 0,1,0,0,0,0;1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,1;0,0,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0 --marking 1,0,0,1,1,0,0 --layout hierarchical --struct V}
 \end{center}
 
 

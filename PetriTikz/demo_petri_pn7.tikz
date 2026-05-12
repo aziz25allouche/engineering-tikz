@@ -1,30 +1,30 @@
 \begin{tikzpicture}[petrinet]
   %% Places  (coord. calculees par Python depuis Pre/Post)
-  \node[place,label=above:attente1] (p0) at (-6.529,-2.163) {};
+  \node[place,label=above:attente1] (p0) at (2.163,-6.529) {};
   \petritokens{p0}{1}
-  \node[place,label=above:attente2] (p1) at (4.922,4.806) {};
+  \node[place,label=above:attente2] (p1) at (-4.806,4.922) {};
   \petritokens{p1}{1}
-  \node[place,label=above:mutex] (p2) at (0.0,-0.0) {};
+  \node[place,label=above:mutex] (p2) at (0.0,0.0) {};
   \petritokens{p2}{1}
-  \node[place,label=above:SC1] (p3) at (-4.922,-4.804) {};
-  \node[place,label=above:SC2] (p4) at (6.531,2.163) {};
+  \node[place,label=above:SC1] (p3) at (4.804,-4.922) {};
+  \node[place,label=above:SC2] (p4) at (-2.163,6.531) {};
   %% Transitions
-  \node[enabled transition,label=below:entrer1] (t0) at (-3.024,-2.952) {};
-  \node[transition,label=below:sortir1] (t1) at (-4.012,-1.329) {};
-  \node[enabled transition,label=below:entrer2] (t2) at (4.011,1.328) {};
-  \node[transition,label=below:sortir2] (t3) at (3.023,2.951) {};
+  \node[enabled transition,label=above:entrer1] (t0) at (2.952,-3.024) {};
+  \node[transition,label=above:sortir1] (t1) at (1.329,-4.012) {};
+  \node[enabled transition,label=above:entrer2] (t2) at (-1.328,4.011) {};
+  \node[transition,label=above:sortir2] (t3) at (-2.951,3.023) {};
   %% Arcs Pre  P->T
   \draw[arc] (p0) -- (t0);
   \draw[arc] (p2) -- (t0);
-  \draw[arc] (p3) -- (t1);
+  \draw[->, bend left=60] (p3) to node[midway] {} (t1);
   \draw[arc] (p1) -- (t2);
-  \draw[arc] (p2) -- (t2);
-  \draw[arc] (p4) -- (t3);
+  \draw[->, bend left=60] (p2) to node[midway] {} (t2);
+  \draw[->, bend left=60] (p4) to node[midway] {} (t3);
   %% Arcs Post T->P
-  \draw[arc] (t0) -- (p3);
-  \draw[arc] (t1) -- (p0);
-  \draw[arc] (t1) -- (p2);
-  \draw[arc] (t2) -- (p4);
-  \draw[arc] (t3) -- (p1);
-  \draw[arc] (t3) -- (p2);
+  \draw[arc] (t0) --  (p3);
+  \draw[arc] (t1) --  (p0);
+  \draw[->, bend left=60] (t1) to node[midway] {} (p2);
+  \draw[->, bend left=60] (t2) to node[midway] {} (p4);
+  \draw[->, bend left=60] (t3) to node[midway] {} (p1);
+  \draw[arc] (t3) --  (p2);
 \end{tikzpicture}

@@ -124,11 +124,172 @@ def layout_force(np_, nt, pre, post, iters=300):
            [p[0] for p in pos[np_:]], [p[1] for p in pos[np_:]]
 
 
+
+# ═══════════════════════════════════════════════════════════════════
+#  Détection des structures via P-invariants
+# ═══════════════════════════════════════════════════════════════════
+
+def _find_p_invariants(pre, post):
+    """
+    P-inv
+    """
+    import math as _m
+    nt = len(pre[0]); np_ = len(pre)
+    C  = incidence(pre, post)
+    # incrémenter les masques de 0 à 2^nt-1 et multiplier les lignes de C par le masque
+    previous = []  # pour stocker les p-invariants déjà trouvés et éviter les combinaisons linéaires
+    for mask in range(1, 1<<np_):
+        x = [0]*np_
+        for i in range(np_):
+            if mask & (1<<i):
+                x[i] = 1
+        if all(sum(C[p][t]*x[p] for p in range(np_))==0 for t in range(nt)):
+            # ajouter ce p-invariant à la liste
+            if sum(x) > 0 and not_combination(x, previous):  # éviter le p-invariant trivial
+                previous.append(x)
+                yield x
+
+            
+def _find_t_invariants(pre, post):
+    """
+    T-invariants minimaux par élimination de Fourier-Motzkin.
+    Retourne les vecteurs entiers y >= 0 tels que C * y = 0
+    (avec C = Post - Pre).
+    """
+    import math as _m
+    nt = len(pre[0]); np_ = len(pre)
+    C  = incidence(pre, post)
+    # incrémenter les masques de 0 à 2^nt-1 et multiplier les colonnes de C par le masque
+    previous = []  # pour stocker les t-invariants déjà trouvés et éviter les combinaisons linéaires
+    for mask in range(1, 1<<nt):
+        y = [0]*nt
+        for i in range(nt):
+            if mask & (1<<i):
+                y[i] = 1
+        if all(sum(C[p][t]*y[t] for t in range(nt))==0 for p in range(np_)):
+            # ajouter ce t-invariant à la liste
+            # éviter le t-invariant trivial et les combinaisons linéaires de t-invariants déjà trouvés
+            if sum(y) > 0 and not_combination(y, previous):
+                previous.append(y)
+                yield y
+                
+def not_combination(y, invariants):    
+    """Vérifie si y est une combinaison linéaire à coefficients entiers positifs des invariants donnés."""
+    if not invariants:
+        return True
+
+    target = tuple(y)
+    invs = [tuple(inv) for inv in invariants if any(inv)]
+    if not invs:
+        return True
+
+    invs.sort(key=sum, reverse=True)
+    memo = {}
+
+    def can_build(rem):
+        if rem in memo:
+            return memo[rem]
+        if all(v == 0 for v in rem):
+            memo[rem] = True
+            return True
+        for inv in invs:
+            if all(rem[i] >= inv[i] for i in range(len(rem))):
+                next_rem = tuple(rem[i] - inv[i] for i in range(len(rem)))
+                if can_build(next_rem):
+                    memo[rem] = True
+                    return True
+        memo[rem] = False
+        return False
+
+    return not can_build(target)
+
+# ═══════════════════════════════════════════════════════════════════
+#  Layout hiérarchique avec patterns structurels
+# ═══════════════════════════════════════════════════════════════════
+
+def layout_hierarchical(np_, nt, pre, post, marking=None, dx=2.5, dy=2.2, dx_cap=1.8):
+    
+    import sys as _sys
+    from collections import deque, defaultdict
+    import statistics as _stats
+    from statistics import mean
+    C=incidence(pre, post)
+
+    tx = [0.0 for _ in range(nt)]
+    ty = [0.0 for _ in range(nt)]
+    px = [0.0 for _ in range(np_)]
+    py = [0.0 for _ in range(np_)]
+
+    px[0] = C[0][0]*dx
+
+    # t-invariants pour détecter les patterns structuraux
+    t_invs = _find_t_invariants(pre, post) # [[1,1,1]]
+    p_invs = _find_p_invariants(pre, post) # [[1,1,0,0],[0,0,1,1]],[[1,1,1,1]]
+    # detecter la division des transitions: si les transitions t1,t2,t3 forment un t-invariant, les placer sur la même ligne
+    t_groups = []
+    for inv in t_invs:
+        #print("t-invariant testé=",inv)
+        for t in range(1,nt):
+            found = False
+            #print("resolution pour t",t)
+            if inv[t] == 1:
+                group = [i for i in range(nt) if inv[i] == 1]
+                #print("group trouvé=",group)
+                if group not in t_groups:
+                    t_groups.append(group)
+                    #print("groupe ajouté")
+                found = True 
+                if not found:
+                    t_groups.append([t])
+                    #print("groupe non trouvé pour t=",t)
+                
+    #print("t_groups",t_groups)
+    # placer les transitions par groupes
+    for i, group in enumerate(t_groups):
+        for t in group:
+            tx[t] = -2*(t%len(group))*dx
+            ty[t] = -2*i*dy
+            #print("t",t,"=",tx[t],ty[t])
+    # placer les places en fonction des p-invariants : si les places p1,p2 forment un p-invariant, les placer sur la même colonne
+    p_groups = []
+    for inv in p_invs:
+        # enlever les cas triviaux : p-invariant de la forme [0,0,0,0] ou [1,1,1,1]
+        if sum(inv) == 0 or sum(inv) == np_:
+            continue
+        found = False
+        for p in range(np_):
+            if inv[p] == 1:
+                group = [i for i in range(np_) if inv[i] == 1]
+                if group not in p_groups:
+                    p_groups.append(group)
+                found = True
+        if not found:
+            p_groups.append([p])
+    # print("groups", p_groups)
+    # placer les places par groupes
+    
+    for group in p_groups:
+        for j,p in enumerate(group):
+            t_p= detect_t_connect(post,p)
+            p_t= detect_t_connect(pre,p)
+            merged = set(t_p) | set(p_t)
+            px[p] = mean([tx[t] for t in merged])
+            py[p] = mean([ty[t] for t in merged]) + (sum(C[p][t]*tx[t] for t in range(nt))/2-dx)/dx 
+            if len(merged)==4:
+                py[p] = mean([ty[t] for t in merged])
+    return tx, ty, px, py
+
+def detect_t_connect(matrice, p):
+    """Retourne la liste des transitions qui ont un arc sortant de p."""
+    return [t for t in range(len(matrice[0])) if matrice[p][t] > 0]
+
+
 LAYOUTS = {
-    "circle":    layout_circle,
-    "bipartite": layout_bipartite,
-    "grid":      layout_grid,
-    "force":     layout_force,
+    "circle":       layout_circle,
+    "bipartite":    layout_bipartite,
+    "grid":         layout_grid,
+    "force":        layout_force,
+    "hierarchical": layout_hierarchical,
 }
 
 
@@ -137,53 +298,59 @@ LAYOUTS = {
 # ═══════════════════════════════════════════════════════════════════
 
 def incidence(pre, post):
-    nt=len(pre); np_=len(pre[0])
-    return [[post[t][p]-pre[t][p] for p in range(np_)] for t in range(nt)]
-
-
-def enabled(pre, marking):
-    np_=len(marking)
-    return [all(marking[p]>=pre[t][p] for p in range(np_)) for t in range(len(pre))]
+    nt=len(pre[0]); np_=len(pre)
+    return [[post[p][t]-pre[p][t] for t in range(nt)] for p in range(np_)]
 
 
 # ═══════════════════════════════════════════════════════════════════
 #  Generateur TikZ -> stdout
 # ═══════════════════════════════════════════════════════════════════
 
-def generate(pre, post, place_labels, trans_labels, marking, layout):
-    nt=len(pre); np_=len(pre[0])
+def generate(pre, post, place_labels, trans_labels, marking, layout, struct):
+    nt=len(pre[0]); np_=len(pre)
     pn=[f"p{i}" for i in range(np_)]
     tn=[f"t{i}" for i in range(nt)]
 
     fn = LAYOUTS.get(layout, layout_circle)
-    px, py, tx, ty = fn(np_, nt, pre, post)
-    activ = enabled(pre, marking)
+    tx, ty, px, py = fn(np_, nt, pre, post)
+    if struct=="V":
+        lab="right"
+        sens_transitions=",rotate=90, anchor=center"
+        aux = px; px = [-i for i in py]; py = aux
+        auxt = tx; tx = [-i for i in ty]; ty = auxt  # par defaut, les labels des places sont au-dessus, ceux des transitions en dessous
+        bordermax= max(tx)
+        bordermin=min(tx)
+    if struct=="H":
+        lab="above"
+        sens_transitions=""
+        bordermax= max(ty)
+        bordermin=min(ty)
 
     out = []
     out.append(r"\begin{tikzpicture}[petrinet]")
     out.append(r"  %% Places  (coord. calculees par Python depuis Pre/Post)")
     for i in range(np_):
-        out.append(f"  \\node[place,label=above:{place_labels[i]}] ({pn[i]}) at ({px[i]},{py[i]}) {{}};")
+        out.append(f"  \\node[place,label={lab}:{place_labels[i]}] ({pn[i]}) at ({px[i]},{py[i]}) {{}};")
         if marking[i] > 0:
             out.append(f"  \\petritokens{{{pn[i]}}}{{{marking[i]}}}")
     out.append(r"  %% Transitions")
     for i in range(nt):
-        style = "enabled transition" if activ[i] else "transition"
-        out.append(f"  \\node[{style},label=below:{trans_labels[i]}] ({tn[i]}) at ({tx[i]},{ty[i]}) {{}};")
+        style = "transition"
+        out.append(f"  \\node[{style},label=above:{trans_labels[i]}{sens_transitions}] ({tn[i]}) at ({tx[i]},{ty[i]}) {{}};")
     out.append(r"  %% Arcs Pre  P->T")
     for t in range(nt):
         for p in range(np_):
-            w=pre[t][p]
+            w=pre[p][t]
             if w>0:
                 wopt=f" node[weight]{{{w}}}" if w>1 else ""
                 out.append(f"  \\draw[arc] ({pn[p]}) --{wopt} ({tn[t]});")
     out.append(r"  %% Arcs Post T->P")
     for t in range(nt):
         for p in range(np_):
-            w=post[t][p]
+            w=post[p][t]
             if w>0:
                 wopt=f" node[weight]{{{w}}}" if w>1 else ""
-                out.append(f"  \\draw[arc] ({tn[t]}) --{wopt} ({pn[p]});")
+                out.append(f"  \\draw[arc] ({tn[t]}) -- {wopt} ({pn[p]});")
     out.append(r"\end{tikzpicture}")
     sys.stdout.write("\n".join(out)+"\n")
     sys.stdout.flush()
@@ -206,20 +373,22 @@ def main():
                    help="Labels transitions : produire,consommer")
     p.add_argument("--marking", default="",
                    help="Marquage initial : 1,0,1,0")
-    p.add_argument("--layout",  default="circle",
-                   choices=["circle","bipartite","grid","force"])
+    p.add_argument("--layout",  default="hierarchical",
+                   choices=["circle","bipartite","grid","force","hierarchical"])
+    p.add_argument("--struct", default="H", choices=["H","V"])
     args = p.parse_args()
 
     pre  = parse_matrix(args.pre)
     post = parse_matrix(args.post)
-    nt   = len(pre)
-    np_  = len(pre[0])
+    nt   = len(pre[0])
+    np_  = len(pre)
+    struct = args.struct
 
-    pl = parse_list(args.places)  if args.places  else [f"p{i}" for i in range(np_)]
-    tl = parse_list(args.trans)   if args.trans   else [f"t{i}" for i in range(nt)]
+    pl = parse_list(args.places)  if args.places  else [f"$P_{i+1}$" for i in range(np_)]
+    tl = parse_list(args.trans)   if args.trans   else [f"$T_{i+1}$" for i in range(nt)]
     m  = parse_marking(args.marking) if args.marking else [0]*np_
 
-    generate(pre, post, pl, tl, m, args.layout)
+    generate(pre, post, pl, tl, m, args.layout, struct)
 
 
 if __name__ == "__main__":
