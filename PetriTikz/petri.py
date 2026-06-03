@@ -82,17 +82,58 @@ def layout_bipartite(np_, nt, *_):
     return px, py, tx, ty
 
 
-def layout_grid(np_, nt, pre, post):
-    dx = 2.5; offset = -(np_-1)*dx/2.0
-    px = [round(offset + i*dx, 3) for i in range(np_)]
-    py = [2.0] * np_
-    tx, ty = [], []
-    for ti in range(nt):
-        linked = [pi for pi in range(np_) if pre[ti][pi]>0 or post[ti][pi]>0]
-        cx = sum(px[pi] for pi in linked)/len(linked) if linked else round(offset+ti*dx, 3)
-        tx.append(round(cx, 3)); ty.append(0.0)
-    return px, py, tx, ty
-
+def layout_separate(np_, nt, pre, post, dx=2.5):
+    # logique d'arbre : les transitions sont placées en fonction de leurs connexions aux places
+    px = [0.0] * np_
+    py = [0.0] * np_
+    tx = [0.0] * nt
+    ty = [0.0] * nt
+    # pre :                   # post :
+    # t1 t2 t3|               # t1 t2 t3|
+    # 2  0  0 | p1            # 0  1  1 | p1
+    # 0  3  0 | p2            # 3  0  0 | p2
+    # 0  0  1 | p3            # 1  0  0 | p3
+    
+    counter_p = 1
+    counter_t = 0
+    p_next=[0]
+    next_t=[0]
+    while counter_p < np_ or counter_t < nt:
+        if counter_t >= nt:
+            break
+        for p in p_next:
+            t_pre= detect_t_connect(pre,p) # p->t
+            #print("de la place p",p," à les transitions t",t_pre)
+            if len(t_pre)==1 : # une seule transition après p
+                counter_t+=1
+                tx[t_pre[0]]=px[p]+dx
+                ty[t_pre[0]]=py[p]
+                next_t=t_pre
+            else : # plusieurs transitions après p
+                counter_t+=len(t_pre)
+                for i,t in enumerate(t_pre):
+                    tx[t]=px[p]+dx
+                    ty[t]=py[p]-(len(t_pre)-1)*dx/2 + i*dx
+                next_t=t_pre
+            #print("transitions mises:",counter_t,"/",nt-1)
+        for t in next_t:
+            if counter_p >= np_:
+                break
+            p_post= detect_p_connect(post,t) # t->p
+            #print("de la transition t",t," à les places p",p_post)
+            if len(p_post)==1 : # une seule place après t
+                counter_p+=1
+                px[p_post[0]]=tx[t]+dx
+                py[p_post[0]]=ty[t]
+                p_next=p_post
+            else : # plusieurs places après t
+                counter_p+=len(p_post)
+                #print("places mises:",counter_p,"/",np_)
+                for i,p_ in enumerate(p_post):
+                    px[p_]=tx[t]+dx
+                    py[p_]=ty[t]-(len(p_post)-1)*dx/2 + i*dx
+                p_next=p_post
+    return tx, ty, px, py
 
 def layout_force(np_, nt, pre, post, iters=300):
     px, py, tx, ty = layout_circle(np_, nt)
@@ -243,13 +284,18 @@ def layout_hierarchical(np_, nt, pre, post, marking=None, dx=2.5, dy=2.2, dx_cap
                     t_groups.append([t])
                     #print("groupe non trouvé pour t=",t)
                 
-    #print("t_groups",t_groups)
+    # print("t_groups",t_groups)
     # placer les transitions par groupes
-    for i, group in enumerate(t_groups):
-        for t in group:
-            tx[t] = -2*(t%len(group))*dx
-            ty[t] = -2*i*dy
-            #print("t",t,"=",tx[t],ty[t])
+    if t_groups:
+        for i, group in enumerate(t_groups):
+            for t in group:
+                tx[t] = 2*(t%len(group))*dx
+                ty[t] = -2*i*dy
+                #print("t",t,"=",tx[t],ty[t])
+    else:
+        for t in range(nt):
+            tx[t] = 2*t*dx
+            ty[t] = 0.0
     # placer les places en fonction des p-invariants : si les places p1,p2 forment un p-invariant, les placer sur la même colonne
     p_groups = []
     for inv in p_invs:
@@ -265,29 +311,39 @@ def layout_hierarchical(np_, nt, pre, post, marking=None, dx=2.5, dy=2.2, dx_cap
                 found = True
         if not found:
             p_groups.append([p])
-    # print("groups", p_groups)
+    # print("p_groups", p_groups)
     # placer les places par groupes
-    
-    for group in p_groups:
-        for j,p in enumerate(group):
-            t_p= detect_t_connect(post,p)
-            p_t= detect_t_connect(pre,p)
-            merged = set(t_p) | set(p_t)
-            px[p] = mean([tx[t] for t in merged])
-            py[p] = mean([ty[t] for t in merged]) + (sum(C[p][t]*tx[t] for t in range(nt))/2-dx)/dx 
-            if len(merged)==4:
-                py[p] = mean([ty[t] for t in merged])
+    if p_groups:
+        for group in p_groups:
+            for j,p in enumerate(group):
+                t_p= detect_t_connect(post,p)
+                p_t= detect_t_connect(pre,p)
+                merged = set(t_p) | set(p_t)
+                px[p] = mean([tx[t] for t in merged])
+                py[p] = mean([ty[t] for t in merged]) - (sum(C[p][t]*tx[t] for t in range(nt))/2+dx)/dx 
+                if len(merged)==4:
+                    py[p] = mean([ty[t] for t in merged])
+    else:
+        for t in range(nt):
+            p_t= detect_p_connect(pre,t)
+            for i,p in enumerate(p_t):
+                # print("transition",t,"possède les places",p_t,"en entrée")
+                px[p] = tx[t]-dx
+                py[p] = ty[t] + ((len(p_t)-1)/len(p_t))*dy - i*2*dy/len(p_t)
     return tx, ty, px, py
 
 def detect_t_connect(matrice, p):
     """Retourne la liste des transitions qui ont un arc sortant de p."""
     return [t for t in range(len(matrice[0])) if matrice[p][t] > 0]
 
+def detect_p_connect(matrice, t):    
+    """Retourne la liste des places qui ont un arc entrant vers t."""
+    return [p for p in range(len(matrice)) if matrice[p][t] > 0]
 
 LAYOUTS = {
     "circle":       layout_circle,
     "bipartite":    layout_bipartite,
-    "grid":         layout_grid,
+    "seperate":     layout_separate,
     "force":        layout_force,
     "hierarchical": layout_hierarchical,
 }
@@ -300,7 +356,6 @@ LAYOUTS = {
 def incidence(pre, post):
     nt=len(pre[0]); np_=len(pre)
     return [[post[p][t]-pre[p][t] for t in range(nt)] for p in range(np_)]
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  Generateur TikZ -> stdout
@@ -316,8 +371,8 @@ def generate(pre, post, place_labels, trans_labels, marking, layout, struct):
     if struct=="V":
         lab="right"
         sens_transitions=",rotate=90, anchor=center"
-        aux = px; px = [-i for i in py]; py = aux
-        auxt = tx; tx = [-i for i in ty]; ty = auxt  # par defaut, les labels des places sont au-dessus, ceux des transitions en dessous
+        aux = px; px = py; py = [-i for i in aux]
+        auxt = tx; tx = ty; ty = [-i for i in auxt]  # par defaut, les labels des places sont au-dessus, ceux des transitions en dessous
         bordermax= max(tx)
         bordermin=min(tx)
     if struct=="H":
@@ -343,14 +398,45 @@ def generate(pre, post, place_labels, trans_labels, marking, layout, struct):
             w=pre[p][t]
             if w>0:
                 wopt=f" node[weight]{{{w}}}" if w>1 else ""
-                out.append(f"  \\draw[arc] ({pn[p]}) --{wopt} ({tn[t]});")
+                if struct=='H':
+                    if abs(tx[t]-px[p])<3:
+                        if post[p][t]>0 and tx[t]<px[p]:
+                            out.append(f"  \\draw[arc,red] ({pn[p]}) to [bend left] {wopt} ({tn[t]});")
+                        else:
+                            out.append(f"  \\draw[arc] ({pn[p]}) -- {wopt} ({tn[t]});")
+                    else:
+                        out.append(f"  \\draw[arc] ({pn[p]}) to [bend left] {wopt} ({tn[t]});") if py[p]>ty[t] else out.append(f"  \\draw[arc] ({pn[p]}) to [bend right] {wopt} ({tn[t]});")
+                if struct=='V':
+                    if abs(ty[t]-py[p])<3:
+                        if post[p][t]>0 and ty[t]>py[p]:
+                            out.append(f"  \\draw[arc,red] ({pn[p]}) to [bend left] {wopt} ({tn[t]});")
+                        else:
+                            out.append(f"  \\draw[arc] ({pn[p]}) -- {wopt} ({tn[t]});")
+                    else:
+                        out.append(f"  \\draw[arc] ({pn[p]}) to [bend left] {wopt} ({tn[t]});") if tx[t]>px[p] else out.append(f"  \\draw[arc] ({pn[p]}) to [bend right] {wopt} ({tn[t]});")
     out.append(r"  %% Arcs Post T->P")
     for t in range(nt):
         for p in range(np_):
             w=post[p][t]
             if w>0:
                 wopt=f" node[weight]{{{w}}}" if w>1 else ""
-                out.append(f"  \\draw[arc] ({tn[t]}) -- {wopt} ({pn[p]});")
+                if struct=='H':
+                    if abs(tx[t]-px[p])<3:
+                        if pre[p][t]>0 and tx[t]>px[p]:
+                            out.append(f"  \\draw[arc,red] ({tn[t]}) to [bend left] {wopt} ({pn[p]});")
+                        else:
+                            out.append(f"  \\draw[arc] ({tn[t]}) -- {wopt} ({pn[p]});")
+                    else:
+                        out.append(f"  \\draw[arc] ({tn[t]}) to [bend left] {wopt} ({pn[p]});") if py[p]>ty[t] else out.append(f"  \\draw[arc] ({tn[t]}) to [bend right] {wopt} ({pn[p]});")
+                if struct=='V':
+                    if abs(ty[t]-py[p])<3:
+                        if pre[p][t]>0 and ty[t]<py[p]:
+                            out.append(f"  \\draw[arc,red] ({tn[t]}) to [bend left] {wopt} ({pn[p]});")
+                        else:
+                            out.append(f"  \\draw[arc] ({tn[t]}) -- {wopt} ({pn[p]});")
+                    else:
+                        out.append(f"  \\draw[arc] ({tn[t]}) to [bend left] {wopt} ({pn[p]});") if tx[t]>px[p] else out.append(f"  \\draw[arc] ({tn[t]}) to [bend right] {wopt} ({pn[p]});")
+
     out.append(r"\end{tikzpicture}")
     sys.stdout.write("\n".join(out)+"\n")
     sys.stdout.flush()
@@ -374,7 +460,7 @@ def main():
     p.add_argument("--marking", default="",
                    help="Marquage initial : 1,0,1,0")
     p.add_argument("--layout",  default="hierarchical",
-                   choices=["circle","bipartite","grid","force","hierarchical"])
+                   choices=["circle","bipartite","seperate","force","hierarchical"])
     p.add_argument("--struct", default="H", choices=["H","V"])
     args = p.parse_args()
 

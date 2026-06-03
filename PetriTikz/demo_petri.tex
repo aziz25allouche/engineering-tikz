@@ -43,17 +43,35 @@
 
 \newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
 
-\title{\textbf{PetriTikz}\\[4pt]
-  {\large La commande \texttt{\textbackslash petrinet\{\}} appelle Python}}
-\author{PetriTikz}
-\date{\today}
+\title{\textbf{PetriTikz} --- Démonstration\\[4pt]
+  {\large Réseaux de Petri automatiques en \LaTeX}}
 
 \begin{document}
 \maketitle
 
 % ═══════════════════════════════════════════════════════════════════
-\section{Reseau producteur--consommateur}
+\section{Schémas exemples}
 % ═══════════════════════════════════════════════════════════════════
+\subsection{Format}
+Pour l'exmple 1: 
+$Pre=\begin{pmatrix}
+  0 & 1 & 0\\
+  1 & 0 & 0\\
+  0 & 0 & 1\\
+  0 & 1 & 0
+\end{pmatrix}$
+$Post = \begin{pmatrix}
+  1 & 0 & 0\\
+  0 & 1 & 0\\
+  0 & 1 & 0\\
+  0 & 0 & 1
+\end{pmatrix}$
+\begin{verbatim}
+  \petrinet{--pre 0,1,0;1,0,0;0,0,1;0,1,0 --post 1,0,0;0,1,0;0,1,0;0,0,1
+  --marking 1,0,1,0 --layout hierarchical --struct V}
+\end{verbatim}
+Avec \textit{marking} : le marquage du reseau\newline
+\textit{struct} : V pour vertical et H pour horizontal.
 
 \subsection{Schema généré automatiquement}
 
@@ -62,8 +80,27 @@
 \end{center}
 
 \begin{center}
+\petrinet{--pre 0,1,0;1,0,0;0,0,1;0,1,0 --post 1,0,0;0,1,0;0,1,0;0,0,1 --marking 1,0,1,0 --layout hierarchical --struct H}
+\end{center}
+
+\begin{center}
 \petrinet{--pre 1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,0;0,1,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0;0,0,0,0,0,1 --post 0,1,0,0,0,0;1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,1;0,0,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0 --marking 1,0,0,1,1,0,0 --layout hierarchical --struct V}
 \end{center}
 
+\begin{center}
+\petrinet{--pre 1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,0;0,1,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0;0,0,0,0,0,1 --post 0,1,0,0,0,0;1,0,0,0,0,0;0,1,0,0,0,0;0,0,1,0,0,1;0,0,0,0,1,0;0,0,0,1,0,0;0,0,0,0,1,0 --marking 1,0,0,1,1,0,0 --layout hierarchical --struct H}
+\end{center}
+
+\begin{center}
+\petrinet{--pre 1,0;0,1;0,1 --post 2,0;1,0;1,0 --marking 1,0,0 --layout hierarchical --struct V}
+\end{center}
+
+\begin{center}
+\petrinet{--pre 1,0;0,1;0,1 --post 2,0;1,0;1,0 --marking 1,0,0 --layout hierarchical --struct H}
+\end{center}
+
+\begin{center}
+\petrinet{--pre 2,0,0;0,3,0;0,0,1 --post 0,1,1;3,0,0;1,0,0 --marking 2,0,0 --layout seperate --struct H}
+\end{center}
 
 \end{document}

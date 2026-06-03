@@ -10,7 +10,6 @@
 
 \title{\textbf{logiTikz} --- D\'emonstration\\[4pt]
        \large Logigrammes automatiques en \LaTeX}
-\date{2026}
 
 \begin{document}
 \maketitle
@@ -21,9 +20,9 @@
 
 \subsection*{\boldmath$S = A \cdot B + \overline{C}$}
 \logicgraph[label=$S$]{A.B+!C}
-
+\subsection*{\boldmath$S = \overline{A \cdot B} + \overline{C}$}
 \logicgraph[label=$H$]{!(A.B)+!C}
-
+\subsection*{\boldmath$S = \overline{A \oplus B}+A+C \cdot B$}
 \logicgraph[label=$G$]{!(A^B)+A+C.B}
 
 

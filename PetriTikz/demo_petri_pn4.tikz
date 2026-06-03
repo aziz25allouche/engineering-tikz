@@ -1,21 +1,38 @@
 \begin{tikzpicture}[petrinet]
   %% Places  (coord. calculees par Python depuis Pre/Post)
-  \node[place,label=above:libre] (p0) at (-2.0,-3.75) {};
+  \node[place,label=above:$P_1$] (p0) at (2.5,-2.0) {};
   \petritokens{p0}{1}
-  \node[place,label=above:produit] (p1) at (-2.0,-1.25) {};
-  \node[place,label=above:vide] (p2) at (-2.0,1.25) {};
-  \petritokens{p2}{1}
-  \node[place,label=above:plein] (p3) at (-2.0,3.75) {};
+  \node[place,label=above:$P_2$] (p1) at (2.5,0.0) {};
+  \node[place,label=above:$P_3$] (p2) at (7.5,0.0) {};
+  \node[place,label=above:$P_4$] (p3) at (7.5,-2.2) {};
+  \petritokens{p3}{1}
+  \node[place,label=above:$P_5$] (p4) at (2.5,-6.4) {};
+  \petritokens{p4}{1}
+  \node[place,label=above:$P_6$] (p5) at (2.5,-4.4) {};
+  \node[place,label=above:$P_7$] (p6) at (7.5,-4.4) {};
   %% Transitions
-  \node[enabled transition,label=above:produire] (t0) at (-0.0,-1.25) {};
-  \node[transition,label=above:consommer] (t1) at (-0.0,0.0) {};
+  \node[transition,label=above:$T_1$] (t0) at (0.0,0.0) {};
+  \node[transition,label=above:$T_2$] (t1) at (5.0,0.0) {};
+  \node[transition,label=above:$T_3$] (t2) at (10.0,0.0) {};
+  \node[transition,label=above:$T_4$] (t3) at (0.0,-4.4) {};
+  \node[transition,label=above:$T_5$] (t4) at (5.0,-4.4) {};
+  \node[transition,label=above:$T_6$] (t5) at (10.0,-4.4) {};
   %% Arcs Pre  P->T
-  \draw[arc] (p0) -- (t0);
-  \draw[arc] (p1) -- (t1);
-  \draw[arc] (p2) -- (t1);
+  \draw[arc] (p0) --  (t0);
+  \draw[arc] (p1) --  (t1);
+  \draw[arc] (p3) --  (t1);
+  \draw[arc] (p2) --  (t2);
+  \draw[arc] (p4) --  (t3);
+  \draw[arc] (p3) --  (t4);
+  \draw[arc] (p5) --  (t4);
+  \draw[arc] (p6) --  (t5);
   %% Arcs Post T->P
-  \draw[->, bend left=60] (t0) to node[midway] {} (p1);
-  \draw[->, bend left=60] (t0) to node[midway] {} (p2);
-  \draw[->, bend left=60] (t1) to node[midway] {} (p0);
-  \draw[->, bend left=60] (t1) to node[midway] {} (p3);
+  \draw[arc] (t0) --  (p1);
+  \draw[arc] (t1) --  (p0);
+  \draw[arc] (t1) --  (p2);
+  \draw[arc] (t2) --  (p3);
+  \draw[arc] (t3) --  (p5);
+  \draw[arc] (t4) --  (p4);
+  \draw[arc] (t4) --  (p6);
+  \draw[arc] (t5) --  (p3);
 \end{tikzpicture}
